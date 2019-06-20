@@ -1,3 +1,5 @@
+open Bigstring
+
 let () =
   for i = 1 to 1000 do
     let a = ref 10 and b = ref 20 in
@@ -9,5 +11,7 @@ let () =
   done;
   Printf.printf "%s\n" (Rusty.tostring ("hello", 42));
   Printf.printf "%s\n" (match Rusty.strtail "hello" with Some s -> s | None -> "?");
+  Printf.printf "%s\n" (match Rusty.bigstrtail (Bigstring.of_string "hello") with
+                        | Some s -> (Bigstring.to_string s)
+                        | None -> "?");
   match Rusty.somestr 42 with Some s -> Printf.printf "%s\n" s | None -> ()
-

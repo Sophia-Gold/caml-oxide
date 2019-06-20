@@ -1,6 +1,7 @@
 #include <caml/mlvalues.h>
 #include <caml/alloc.h>
 #include <caml/memory.h>
+#include <caml/bigarray.h>
 
 value caml_alloc_cell(uintnat tag, value a) {
   CAMLparam1(a);
