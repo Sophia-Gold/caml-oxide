@@ -16,7 +16,9 @@ type Uintnat = u64;
 type intnat = i64;
 type RawValue = intnat;
 
-pub enum Void { }
+// true 64-bit int, otherwise they lose 1 bit of precision across FFI boundary
+#[allow(non_camel_case_types)]
+struct int64(i64); 
 
 //const Max_young_wosize : usize = 256;
 
@@ -76,8 +78,8 @@ extern "C" {
     fn caml_alloc_initialized_string(len: usize, contents: *const u8) -> RawValue;
     fn caml_string_length(s: RawValue) -> usize;
 
-    fn caml_ba_alloc(flags: i16, dims: i16, data: *const i32, len: usize) -> RawValue;
-    fn caml_ba_byte_size(s: RawValue) -> Uintnat; 
+    fn caml_ba_alloc_dims(flags: RawValue, dims: RawValue, data: *const u8, len: RawValue) -> RawValue;
+    fn caml_ba_byte_size(s: RawValue) -> usize;
 
     fn caml_copy_double(f: f64) -> RawValue;
     fn caml_copy_int32(f: i32) -> RawValue;
@@ -187,13 +189,37 @@ trait MLType {
 
 impl MLType for String {
     fn name() -> String {
+        "bytes".to_owned()
+    }
+}
+
+impl MLType for &str {
+    fn name() -> String {
         "string".to_owned()
     }
 }
 
-impl MLType for Vec<u8> {
+impl MLType for u8 {
+    fn name() -> String {
+        "char".to_owned()
+    }
+}
+
+impl MLType for int64 {
+    fn name() -> String {
+        "int64".to_owned()
+    }
+}
+
+impl MLType for &[u8] {
     fn name() -> String {
         "Bigstring.t".to_owned()
+    }
+}
+
+impl MLType for () {
+    fn name() -> String {
+        "Unit".to_owned()
     }
 }
 
@@ -235,7 +261,7 @@ struct EE {}
 impl MLType for EE {
     fn name() -> String {
         "'e".to_owned()
-    }
+    } 
 }
 
 fn type_name<T: MLType>() -> String {
@@ -307,15 +333,44 @@ impl<'a> Val<'a, String> {
     }
 }
 
-impl<'a> Val<'a, Vec<u8>> {
+impl<'a> Val<'a, &str> {
     fn as_bytes(self) -> &'a [u8] {
         let s = self.raw;
-        assert!(Tag_val(s) == Custom_tag);
-        unsafe { slice::from_raw_parts(s as *const u8, caml_ba_byte_size(s) as usize) }
+        assert!(Tag_val(s) == String_tag);
+        unsafe { slice::from_raw_parts(s as *const u8, caml_string_length(s)) }
     }
-    // fn as_vec(self) -> &'a Vec<u8> {
-    //     Vec::from(self.as_bytes())
+    fn as_str(self) -> &'a str {
+        str::from_utf8(self.as_bytes()).unwrap()
+    }
+    // fn into_string(self) -> &'a String {
+    //     str::into_string(std::boxed::new(self))
     // }
+}
+
+impl<'a> Val<'a, &[u8]> {
+    fn as_slice(self) -> &'a [u8] {
+        let s = self.raw;
+        assert!(Tag_val(s) == Custom_tag);
+        unsafe { let ba = *(s as *const i64).offset(1 as isize);
+                 // slice::from_raw_parts(ba as *const u8, caml_ba_byte_size(ba))
+                 slice::from_raw_parts(ba as *const u8, 5)}
+    }
+}
+
+impl<'a> Val<'a, u8> {
+    fn as_u8(self) -> u8 {
+        assert!(!Is_block(self.raw));
+        let s = self.raw >> 1;
+        s as u8
+    }
+}
+
+impl<'a> Val<'a, int64> {
+    fn as_int64(self) -> i64 {
+        let s = self.raw;
+        assert!(Tag_val(s) == Custom_tag);
+        unsafe { *(s as *const i64).offset(1 as isize) }
+    }
 }
 
 impl<'a> Val<'a, intnat> {
@@ -403,7 +458,7 @@ impl<T> GCResult2<T> {
 
 struct GCtoken {}
 
-fn alloc_pair<'a, A: MLType, B: MLType>(
+fn alloc_caml_pair<'a, A: MLType, B: MLType>(
     _token: GCtoken,
     tag: Uintnat,
     a: Val<'a, A>,
@@ -416,47 +471,53 @@ fn none<A: MLType>(_token: GCtoken) -> GCResult1<Option<A>> {
     GCResult1::of(1)
 }
 
-fn alloc_some<'a, A: MLType>(_token: GCtoken, a: Val<'a, A>) -> GCResult1<Option<A>> {
+fn alloc_caml_some<'a, A: MLType>(_token: GCtoken, a: Val<'a, A>) -> GCResult1<Option<A>> {
     GCResult1::of(unsafe { caml_alloc_cell(0, a.eval()) })
 }
 
-fn alloc_blank_string(_token: GCtoken, len: usize) -> GCResult1<String> {
+fn alloc_blank_caml_string(_token: GCtoken, len: usize) -> GCResult1<&'static str> {
     GCResult1::of(unsafe { caml_alloc_string(len) })
 }
 
-fn alloc_bytes(token: GCtoken, s: &[u8]) -> GCResult1<String> {
-    let r = alloc_blank_string(token, s.len());
+fn alloc_caml_string(token: GCtoken, s: &str) -> GCResult1<&'static str> {
+    let r = alloc_blank_caml_string(token, s.len());
+    unsafe {
+        ptr::copy_nonoverlapping(s.to_string().as_ptr(), r.raw as *mut u8, s.len());
+    }
+    r
+}
+
+fn alloc_blank_caml_bytes(_token: GCtoken, len: usize) -> GCResult1<String> {
+    GCResult1::of(unsafe { caml_alloc_string(len) })
+}
+
+fn alloc_caml_bytes(token: GCtoken, s: String) -> GCResult1<String> {
+    let r = alloc_blank_caml_bytes(token, s.len());
     unsafe {
         ptr::copy_nonoverlapping(s.as_ptr(), r.raw as *mut u8, s.len());
     }
     r
 }
 
-fn alloc_string(token: GCtoken, s: &str) -> GCResult1<String> {
-    let r = alloc_blank_string(token, s.len());
-    unsafe {
-        ptr::copy_nonoverlapping(s.as_ptr(), r.raw as *mut u8, s.len());
-    }
-    r
-}
+// fn alloc_blank_caml_bigstring(_token: GCtoken, len: usize) -> GCResult1<&'static [u8]> {
+//     GCResult1::of(unsafe { caml_ba_alloc_dims(3, 1 , [0 as u8; 4].as_ptr() , len as i64) })
+// }
 
-fn alloc_blank_bigstring(_token: GCtoken, len: usize) -> GCResult1<Vec<u8>> {
-    GCResult1::of(unsafe { caml_ba_alloc(3, 1, ptr::null(), len) })
-}
-
-fn alloc_bigstring(token: GCtoken, v: &Vec<u8>) -> GCResult1<Vec<u8>> {
-    let r = alloc_blank_bigstring(token, v.len());
-    unsafe {
-        ptr::copy_nonoverlapping(v.as_ptr(), r.raw as *mut u8, v.len());
-    }
-    r
+fn alloc_caml_bigstring(_token: GCtoken, v: &[u8]) -> GCResult1<&'static [u8]> {
+    // let r = alloc_blank_caml_bigstring(token, v.len());
+    // unsafe {
+    //     ptr::copy_nonoverlapping(v.as_ptr(), r.raw as *mut u8, v.len());
+    // }
+    // r
+        
+    GCResult1::of(unsafe { caml_ba_alloc_dims(3, 1 , v.as_ptr() , v.len() as i64) })
 }
 
 macro_rules! call {
     {
         $fn:ident
             ( $gc:ident, $( $arg:expr ),* )
-    } => {{
+    } => {{ 
         let res = $fn( GCtoken {}, $( $arg ),* );
         res.mark($gc).eval($gc)
     }}
@@ -474,7 +535,7 @@ macro_rules! camlmod {
                 with_gc(|$gc| {
                     $(
                         let $arg : Val<$ty> = unsafe { Val::new($gc, $arg) };
-                    );*
+                    )*
                         let retval : Val<$res> = $body;
                     retval.raw
                 })
@@ -504,50 +565,84 @@ macro_rules! camlmod {
 }
 
 camlmod!{
-    fn tostring(gc, p: Pair<String, intnat>) -> String {
+    fn tostring(gc, p: Pair<&str, intnat>) -> &str {
         let pv = p.var(gc);
         let msg = format!("str: {}, int: {}",
-                          p.fst().as_str(),
-                          p.snd().as_int());
-        let ret = call!{ alloc_string(gc, &msg) };
+                           p.fst().as_str(),
+                          p.snd().as_int());        
+        let ret = call!{ alloc_caml_string(gc, &msg) };
 
         let _msg2 = format!("str: {}", pv.get(gc).fst().as_str());
         ret
     }
 
     fn mkpair(gc, x: AA, y: BB) -> Pair<AA, BB> {
-        let pair = call!{ alloc_pair(gc, 0, x, y)};
+        let pair = call!{ alloc_caml_pair(gc, 0, x, y)};
         pair
     }
 
-    fn strtail(gc, x: String) -> Option<String> {
-        let b = x.as_bytes();
+    fn strtail(gc, x: &str) -> Option<&str> {
+        let b = x.as_str();
         if b.is_empty() {
             call!{ none(gc, ) }
         } else {
-            call!{ alloc_some(gc, call!{alloc_bytes(gc, &b[1..])}) }
+            call!{ alloc_caml_some(gc, call!{alloc_caml_string(gc, &b[1..])}) }
         }
     }
 
-    fn somestr(gc, x: intnat) -> Option<String> {
+    fn somestr(gc, x: intnat) -> Option<&str> {
         let s = x.as_int().to_string();
-        let cell = call!{ alloc_some(gc, call!{alloc_string(gc, &s)} ) };
-        //    let cell2 = call!{ alloc_some(gc, call!{alloc_string(gc, &s)} ) };
-        cell
+        let pair = call!{ alloc_caml_some(gc, call!{alloc_caml_string(gc, &s)} ) };
+        pair
     }
 
     fn triple(gc, x: AA) -> Pair<AA, Pair<AA, AA>> {
         let vx = x.var(gc);
-        let snd = call!{alloc_pair(gc, 0, x, x)};
-        call!{ alloc_pair(gc, 0, vx.get(gc), snd) }
+        let snd = call!{alloc_caml_pair(gc, 0, x, x)};
+        call!{ alloc_caml_pair(gc, 0, vx.get(gc), snd) }
     }
 
-    fn bigstrtail(gc, x: Vec<u8>) -> Option<Vec<u8>> {
-        let v = x.as_bytes();
+    fn bigstrtail(gc, x: &[u8]) -> Option<&[u8]> {
+        let v = x.as_slice();
         if v.len() == 0 {
             call!{ none(gc, ) }
         } else {
-            call!{ alloc_some(gc, call!{alloc_bigstring(gc, &v[1..].to_vec())}) }
+            call!{ alloc_caml_some(gc, call!{alloc_caml_bigstring(gc, &v[1..])}) }
         }
+    }
+    
+    fn printbigstring(gc, x: &[u8]) -> &str {
+        let x = x.as_slice();
+        for i in 0..x.len() {
+            print!("{}", x[i] as char);
+        }
+        print!("\n");
+        
+        let msg = "";
+        call!{ alloc_caml_string(gc, msg) }
+    }
+
+    fn printchar(gc, x: u8) -> &str {
+        let x = x.as_u8();
+        println!("{} ", x as char);
+        
+        let msg = "";
+        call!{ alloc_caml_string(gc, &msg) }
+    }
+
+    fn printint(gc, x: i64) -> &str {
+        let x = x.as_int();
+        println!("{} ", x );
+        
+        let msg = "";
+        call!{ alloc_caml_string(gc, msg) }
+    }
+
+    fn printint64(gc, x: int64) -> &str {
+        let x = x.as_int64();
+        println!("{} ", x);
+        
+        let msg = "";
+        call!{ alloc_caml_string(gc, msg) }
     }
 }
