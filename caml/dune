@@ -1,0 +1,18 @@
+(executable
+ (name printmod)
+ (modules printmod)
+ (libraries unix threads)
+ (link_deps ../target/debug/librusty.a allocpair.c)
+ (link_flags -thread -ccopt -pthread target/debug/librusty.a caml/allocpair.c))
+
+(rule
+ (targets rusty.ml)
+ (deps (:gen printmod.exe))
+ (action (with-stdout-to %{targets} (run %{gen}))))
+
+(executable
+ (public_name main)
+ (modules main rusty)
+ (libraries unix threads)
+ (link_deps ../target/debug/librusty.a allocpair.c)
+ (link_flags -thread -ccopt -pthread target/debug/librusty.a caml/allocpair.c))
