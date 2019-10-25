@@ -16,9 +16,8 @@ type Uintnat = u64;
 type intnat = i64;
 type RawValue = intnat;
 
-// true 64-bit int, otherwise they lose 1 bit of precision across FFI boundary
-#[allow(non_camel_case_types)]
-struct int64(i64); 
+// OCaml ints are 63 bit, thus this type loses 1 bit of precision across the FFI boundary
+struct OCamlInt(i64);
 
 //const Max_young_wosize : usize = 256;
 
@@ -199,13 +198,13 @@ impl MLType for &str {
     }
 }
 
-impl MLType for u8 {
+impl MLType for char {
     fn name() -> String {
         "char".to_owned()
     }
 }
 
-impl MLType for int64 {
+impl MLType for i64 {
     fn name() -> String {
         "int64".to_owned()
     }
@@ -223,7 +222,7 @@ impl MLType for () {
     }
 }
 
-impl MLType for intnat {
+impl MLType for OCamlInt {
     fn name() -> String {
         "int".to_owned()
     }
@@ -357,23 +356,23 @@ impl<'a> Val<'a, &[u8]> {
     }
 }
 
-impl<'a> Val<'a, u8> {
-    fn as_u8(self) -> u8 {
+impl<'a> Val<'a, char> {
+    fn as_char(self) -> char {
         assert!(!Is_block(self.raw));
         let s = self.raw >> 1;
-        s as u8
+        s as u8 as char
     }
 }
 
-impl<'a> Val<'a, int64> {
-    fn as_int64(self) -> i64 {
+impl<'a> Val<'a, i64> {
+    fn as_i64(self) -> i64 {
         let s = self.raw;
         assert!(Tag_val(s) == Custom_tag);
         unsafe { *(s as *const i64).offset(1 as isize) }
     }
 }
 
-impl<'a> Val<'a, intnat> {
+impl<'a> Val<'a, OCamlInt> {
     fn as_int(self) -> intnat {
         assert!(!Is_block(self.raw));
         self.raw >> 1
@@ -382,10 +381,17 @@ impl<'a> Val<'a, intnat> {
 
 
 
-fn of_int(n: i64) -> Val<'static, intnat> {
+fn of_int(n: i64) -> Val<'static, OCamlInt> {
     Val {
         _marker: Default::default(),
         raw: (n << 1) | 1,
+    }
+}
+
+fn of_char(n: char) -> Val<'static, char> {
+    Val {
+        _marker: Default::default(),
+        raw: ((n as i64) << 1) | 1,
     }
 }
 
@@ -499,17 +505,7 @@ fn alloc_caml_bytes(token: GCtoken, s: String) -> GCResult1<String> {
     r
 }
 
-// fn alloc_blank_caml_bigstring(_token: GCtoken, len: usize) -> GCResult1<&'static [u8]> {
-//     GCResult1::of(unsafe { caml_ba_alloc_dims(3, 1 , [0 as u8; 4].as_ptr() , len as i64) })
-// }
-
 fn alloc_caml_bigstring(_token: GCtoken, v: &[u8]) -> GCResult1<&'static [u8]> {
-    // let r = alloc_blank_caml_bigstring(token, v.len());
-    // unsafe {
-    //     ptr::copy_nonoverlapping(v.as_ptr(), r.raw as *mut u8, v.len());
-    // }
-    // r
-        
     GCResult1::of(unsafe { caml_ba_alloc_dims(3, 1 , v.as_ptr() , v.len() as i64) })
 }
 
@@ -565,7 +561,7 @@ macro_rules! camlmod {
 }
 
 camlmod!{
-    fn tostring(gc, p: Pair<&str, intnat>) -> &str {
+    fn tostring(gc, p: Pair<&str, OCamlInt>) -> &str {
         let pv = p.var(gc);
         let msg = format!("str: {}, int: {}",
                            p.fst().as_str(),
@@ -590,7 +586,16 @@ camlmod!{
         }
     }
 
-    fn somestr(gc, x: intnat) -> Option<&str> {
+    fn bytestail(gc, x: String) -> Option<String> {
+        let b = x.as_bytes();
+        if b.is_empty() {
+            call!{ none(gc, ) }
+        } else {
+            call!{ alloc_caml_some(gc, call!{alloc_caml_bytes(gc, String::from_utf8(b[1..].to_vec()).unwrap())}) }
+        }
+    }
+
+    fn somestr(gc, x: OCamlInt) -> Option<&str> {
         let s = x.as_int().to_string();
         let pair = call!{ alloc_caml_some(gc, call!{alloc_caml_string(gc, &s)} ) };
         pair
@@ -622,15 +627,15 @@ camlmod!{
         call!{ alloc_caml_string(gc, msg) }
     }
 
-    fn printchar(gc, x: u8) -> &str {
-        let x = x.as_u8();
-        println!("{} ", x as char);
+    fn printchar(gc, x: char) -> &str {
+        let x = x.as_char();
+        println!("{} ", x);
         
         let msg = "";
         call!{ alloc_caml_string(gc, &msg) }
     }
 
-    fn printint(gc, x: i64) -> &str {
+    fn printint(gc, x: OCamlInt) -> &str {
         let x = x.as_int();
         println!("{} ", x );
         
@@ -638,11 +643,27 @@ camlmod!{
         call!{ alloc_caml_string(gc, msg) }
     }
 
-    fn printint64(gc, x: int64) -> &str {
-        let x = x.as_int64();
+    fn printint64(gc, x: i64) -> &str {
+        let x = x.as_i64();
         println!("{} ", x);
         
         let msg = "";
         call!{ alloc_caml_string(gc, msg) }
+    }
+
+    fn inc(gc, x: OCamlInt) -> OCamlInt {
+        of_int(x.as_int() + 1)
+    }
+
+    fn inc64(gc, x: i64) -> i64 {
+        unsafe { Val::new(gc, caml_copy_int64(x.as_i64() + 1)) }
+    }
+
+    fn atoi(gc, x: char) -> OCamlInt {
+        of_int(x.as_char() as i64)
+    }
+    
+    fn itoa(gc, x: OCamlInt) -> char {
+        of_char(x.as_int() as u8 as char)
     }
 }

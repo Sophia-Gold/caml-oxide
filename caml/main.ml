@@ -19,7 +19,7 @@ let () =
     | None -> Printf.printf "None" in
 
   let _ = Rusty.printint 42 in
-  let _ = Rusty.printint64 (Int64.of_int 42) in
+  let _ = Rusty.printint64 42L in
   let _ = Rusty.printchar (Char.chr 72) in
 
   let _ = Rusty.printbigstring (Bigstring.of_string "HELLO") in
