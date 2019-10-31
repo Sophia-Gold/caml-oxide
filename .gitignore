@@ -1,7 +1,6 @@
 target
 Cargo.lock
-*.cm[ix]
-*.o
 _build
-printmod
-testy
+**/dune-project
+**/*.install
+**/.merlin
