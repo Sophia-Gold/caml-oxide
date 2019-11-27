@@ -8,16 +8,15 @@ use std::ptr;
 use std::marker;
 use std::slice;
 use std::str;
-use std::io::{self, Write};
 
 type Uintnat = u64;
 
 #[allow(non_camel_case_types)]
 type intnat = i64;
-type RawValue = intnat;
+pub type RawValue = intnat;
 
 // OCaml ints are 63 bit, thus this type loses 1 bit of precision across the FFI boundary
-struct OCamlInt(i64);
+pub struct OCamlInt(i64);
 
 //const Max_young_wosize : usize = 256;
 
@@ -64,7 +63,7 @@ struct caml__roots_block {
 const LOCALS_BLOCK_SIZE: usize = 8;
 type LocalsBlock = [Cell<RawValue>; LOCALS_BLOCK_SIZE];
 
-struct Gc<'gc> {
+pub struct Gc<'gc> {
     _marker: marker::PhantomData<&'gc i32>,
 }
 
@@ -80,10 +79,10 @@ extern "C" {
     fn caml_ba_alloc_dims(flags: RawValue, dims: RawValue, data: *const u8, len: RawValue) -> RawValue;
     fn caml_ba_byte_size(s: RawValue) -> usize;
 
-    fn caml_copy_double(f: f64) -> RawValue;
-    fn caml_copy_int32(f: i32) -> RawValue;
-    fn caml_copy_int64(f: i64) -> RawValue;
-    fn caml_copy_nativeint(f: intnat) -> RawValue;
+    pub fn caml_copy_double(f: f64) -> RawValue;
+    pub fn caml_copy_int32(f: i32) -> RawValue;
+    pub fn caml_copy_int64(f: i64) -> RawValue;
+    pub fn caml_copy_nativeint(f: intnat) -> RawValue;
 }
 
 unsafe fn alloc_gc_cell<'a, 'gc>(_gc: &'a Gc<'gc>) -> &'gc Cell<RawValue> {
@@ -106,7 +105,7 @@ unsafe fn free_gc_cell(cell: &Cell<RawValue>) {
 
 
 
-fn with_gc<'a, F>(body: F) -> RawValue
+pub fn with_gc<'a, F>(body: F) -> RawValue
 where
     F: Fn(&mut Gc) -> RawValue,
 {
@@ -135,9 +134,9 @@ where
 }
 
 
-struct Val<'a, T: 'a> {
+pub struct Val<'a, T: 'a> {
     _marker: marker::PhantomData<&'a T>,
-    raw: RawValue,
+    pub raw: RawValue,
 }
 
 
@@ -153,18 +152,18 @@ impl<'a, T> Clone for Val<'a, T> {
 }
 
 impl<'a, T> Val<'a, T> {
-    unsafe fn new<'gc>(_gc: &'a Gc<'gc>, x: RawValue) -> Val<'a, T> {
+    pub unsafe fn new<'gc>(_gc: &'a Gc<'gc>, x: RawValue) -> Val<'a, T> {
         Val {
             _marker: Default::default(),
             raw: x,
         }
     }
 
-    fn eval(self) -> RawValue {
+    pub fn eval(self) -> RawValue {
         self.raw
     }
 
-    fn var<'g, 'gc>(self, gc: &'g Gc<'gc>) -> Var<'gc, T> {
+    pub fn var<'g, 'gc>(self, gc: &'g Gc<'gc>) -> Var<'gc, T> {
         Var::new(gc, self)
     }
 
@@ -182,7 +181,7 @@ impl<'a, T> Val<'a, T> {
     }
 }
 
-trait MLType {
+pub trait MLType {
     fn name() -> String;
 }
 
@@ -228,46 +227,46 @@ impl MLType for OCamlInt {
     }
 }
 
-struct AA {}
+pub struct AA {}
 impl MLType for AA {
     fn name() -> String {
         "'a".to_owned()
     }
 }
 
-struct BB {}
+pub struct BB {}
 impl MLType for BB {
     fn name() -> String {
         "'b".to_owned()
     }
 }
 
-struct CC {}
+pub struct CC {}
 impl MLType for CC {
     fn name() -> String {
         "'c".to_owned()
     }
 }
 
-struct DD {}
+pub struct DD {}
 impl MLType for DD {
     fn name() -> String {
         "'d".to_owned()
     }
 }
 
-struct EE {}
+pub struct EE {}
 impl MLType for EE {
     fn name() -> String {
         "'e".to_owned()
     } 
 }
 
-fn type_name<T: MLType>() -> String {
+pub fn type_name<T: MLType>() -> String {
     T::name()
 }
 
-struct Pair<A: MLType, B: MLType> {
+pub struct Pair<A: MLType, B: MLType> {
     _a: marker::PhantomData<A>,
     _b: marker::PhantomData<B>,
 }
@@ -277,7 +276,7 @@ impl<A: MLType, B: MLType> MLType for Pair<A, B> {
     }
 }
 
-struct List<A: MLType> {
+pub struct List<A: MLType> {
     _a: marker::PhantomData<A>,
 }
 impl<A: MLType> MLType for List<A> {
@@ -286,7 +285,7 @@ impl<A: MLType> MLType for List<A> {
     }
 }
 
-struct Option<A: MLType> {
+pub struct Option<A: MLType> {
     _a: marker::PhantomData<A>,
 }
 impl<A: MLType> MLType for Option<A> {
@@ -295,12 +294,12 @@ impl<A: MLType> MLType for Option<A> {
     }
 }
 
-enum CList<'a, A: 'a + MLType> {
+pub enum CList<'a, A: 'a + MLType> {
     Nil,
     Cons { x: Val<'a, A>, xs: Val<'a, List<A>> },
 }
 impl<'a, A: MLType> Val<'a, List<A>> {
-    fn as_list(self) -> CList<'a, A> {
+    pub fn as_list(self) -> CList<'a, A> {
         if self.is_block() {
             CList::Cons {
                 x: unsafe { self.field(0) },
@@ -313,41 +312,38 @@ impl<'a, A: MLType> Val<'a, List<A>> {
 }
 
 impl<'a, A: MLType, B: MLType> Val<'a, Pair<A, B>> {
-    fn fst(self) -> Val<'a, A> {
+    pub fn fst(self) -> Val<'a, A> {
         unsafe { self.field(0) }
     }
-    fn snd(self) -> Val<'a, B> {
+    pub fn snd(self) -> Val<'a, B> {
         unsafe { self.field(1) }
     }
 }
 
 impl<'a> Val<'a, String> {
-    fn as_bytes(self) -> &'a [u8] {
+    pub fn as_bytes(self) -> &'a [u8] {
         let s = self.raw;
         assert!(Tag_val(s) == String_tag);
         unsafe { slice::from_raw_parts(s as *const u8, caml_string_length(s)) }
     }
-    fn as_str(self) -> &'a str {
+    pub fn as_str(self) -> &'a str {
         str::from_utf8(self.as_bytes()).unwrap()
     }
 }
 
 impl<'a> Val<'a, &str> {
-    fn as_bytes(self) -> &'a [u8] {
+    pub fn as_bytes(self) -> &'a [u8] {
         let s = self.raw;
         assert!(Tag_val(s) == String_tag);
         unsafe { slice::from_raw_parts(s as *const u8, caml_string_length(s)) }
     }
-    fn as_str(self) -> &'a str {
+    pub fn as_str(self) -> &'a str {
         str::from_utf8(self.as_bytes()).unwrap()
     }
-    // fn into_string(self) -> &'a String {
-    //     str::into_string(std::boxed::new(self))
-    // }
 }
 
 impl<'a> Val<'a, &[u8]> {
-    fn as_slice(self) -> &'a [u8] {
+    pub fn as_slice(self) -> &'a [u8] {
         let s = self.raw;
         assert!(Tag_val(s) == Custom_tag);
         unsafe { let ba = *(s as *const i64).offset(1 as isize);
@@ -357,7 +353,7 @@ impl<'a> Val<'a, &[u8]> {
 }
 
 impl<'a> Val<'a, char> {
-    fn as_char(self) -> char {
+    pub fn as_char(self) -> char {
         assert!(!Is_block(self.raw));
         let s = self.raw >> 1;
         s as u8 as char
@@ -365,7 +361,7 @@ impl<'a> Val<'a, char> {
 }
 
 impl<'a> Val<'a, i64> {
-    fn as_i64(self) -> i64 {
+    pub fn as_i64(self) -> i64 {
         let s = self.raw;
         assert!(Tag_val(s) == Custom_tag);
         unsafe { *(s as *const i64).offset(1 as isize) }
@@ -373,7 +369,7 @@ impl<'a> Val<'a, i64> {
 }
 
 impl<'a> Val<'a, OCamlInt> {
-    fn as_int(self) -> intnat {
+    pub fn as_int(self) -> intnat {
         assert!(!Is_block(self.raw));
         self.raw >> 1
     }
@@ -381,14 +377,14 @@ impl<'a> Val<'a, OCamlInt> {
 
 
 
-fn of_int(n: i64) -> Val<'static, OCamlInt> {
+pub fn of_int(n: i64) -> Val<'static, OCamlInt> {
     Val {
         _marker: Default::default(),
         raw: (n << 1) | 1,
     }
 }
 
-fn of_char(n: char) -> Val<'static, char> {
+pub fn of_char(n: char) -> Val<'static, char> {
     Val {
         _marker: Default::default(),
         raw: ((n as i64) << 1) | 1,
@@ -398,13 +394,13 @@ fn of_char(n: char) -> Val<'static, char> {
 
 
 /* A location registered with the GC */
-struct Var<'a, T> {
+pub struct Var<'a, T> {
     cell: &'a Cell<RawValue>,
     _marker: marker::PhantomData<Cell<T>>,
 }
 
 impl<'a, T> Var<'a, T> {
-    fn new<'gc, 'tmp>(gc: &'a Gc<'gc>, x: Val<'tmp, T>) -> Var<'gc, T> {
+    pub fn new<'gc, 'tmp>(gc: &'a Gc<'gc>, x: Val<'tmp, T>) -> Var<'gc, T> {
         let cell: &'gc Cell<RawValue> = unsafe { alloc_gc_cell(gc) };
         cell.set(x.eval());
         Var {
@@ -412,10 +408,10 @@ impl<'a, T> Var<'a, T> {
             cell: cell,
         }
     }
-    fn set<'gc, 'tmp>(&mut self, x: Val<'tmp, T>) {
+    pub fn set<'gc, 'tmp>(&mut self, x: Val<'tmp, T>) {
         self.cell.set(x.eval());
     }
-    fn get<'gc, 'tmp>(&'a self, _gc: &'tmp Gc<'gc>) -> Val<'tmp, T> {
+    pub fn get<'gc, 'tmp>(&'a self, _gc: &'tmp Gc<'gc>) -> Val<'tmp, T> {
         Val {
             _marker: Default::default(),
             raw: self.cell.get(),
@@ -429,12 +425,12 @@ impl<'a, T> Drop for Var<'a, T> {
     }
 }
 
-struct GCResult1<T> {
+pub struct GCResult1<T> {
     raw: RawValue,
     _marker: marker::PhantomData<T>,
 }
 
-struct GCResult2<T> {
+pub struct GCResult2<T> {
     raw: RawValue,
     _marker: marker::PhantomData<T>,
 }
@@ -446,7 +442,7 @@ impl<T> GCResult1<T> {
             raw: raw,
         }
     }
-    fn mark<'gc>(self, _gc: &mut Gc<'gc>) -> GCResult2<T> {
+    pub fn mark<'gc>(self, _gc: &mut Gc<'gc>) -> GCResult2<T> {
         GCResult2 {
             _marker: Default::default(),
             raw: self.raw,
@@ -454,7 +450,7 @@ impl<T> GCResult1<T> {
     }
 }
 impl<T> GCResult2<T> {
-    fn eval<'a, 'gc: 'a>(self, _gc: &'a Gc<'gc>) -> Val<'a, T> {
+    pub fn eval<'a, 'gc: 'a>(self, _gc: &'a Gc<'gc>) -> Val<'a, T> {
         Val {
             _marker: Default::default(),
             raw: self.raw,
@@ -462,9 +458,9 @@ impl<T> GCResult2<T> {
     }
 }
 
-struct GCtoken {}
+pub struct GCtoken {}
 
-fn alloc_caml_pair<'a, A: MLType, B: MLType>(
+pub fn alloc_caml_pair<'a, A: MLType, B: MLType>(
     _token: GCtoken,
     tag: Uintnat,
     a: Val<'a, A>,
@@ -473,11 +469,11 @@ fn alloc_caml_pair<'a, A: MLType, B: MLType>(
     GCResult1::of(unsafe { caml_alloc_pair(tag, a.eval(), b.eval()) })
 }
 
-fn none<A: MLType>(_token: GCtoken) -> GCResult1<Option<A>> {
+pub fn none<A: MLType>(_token: GCtoken) -> GCResult1<Option<A>> {
     GCResult1::of(1)
 }
 
-fn alloc_caml_some<'a, A: MLType>(_token: GCtoken, a: Val<'a, A>) -> GCResult1<Option<A>> {
+pub fn alloc_caml_some<'a, A: MLType>(_token: GCtoken, a: Val<'a, A>) -> GCResult1<Option<A>> {
     GCResult1::of(unsafe { caml_alloc_cell(0, a.eval()) })
 }
 
@@ -485,7 +481,7 @@ fn alloc_blank_caml_string(_token: GCtoken, len: usize) -> GCResult1<&'static st
     GCResult1::of(unsafe { caml_alloc_string(len) })
 }
 
-fn alloc_caml_string(token: GCtoken, s: &str) -> GCResult1<&'static str> {
+pub fn alloc_caml_string(token: GCtoken, s: &str) -> GCResult1<&'static str> {
     let r = alloc_blank_caml_string(token, s.len());
     unsafe {
         ptr::copy_nonoverlapping(s.to_string().as_ptr(), r.raw as *mut u8, s.len());
@@ -497,7 +493,7 @@ fn alloc_blank_caml_bytes(_token: GCtoken, len: usize) -> GCResult1<String> {
     GCResult1::of(unsafe { caml_alloc_string(len) })
 }
 
-fn alloc_caml_bytes(token: GCtoken, s: String) -> GCResult1<String> {
+pub fn alloc_caml_bytes(token: GCtoken, s: String) -> GCResult1<String> {
     let r = alloc_blank_caml_bytes(token, s.len());
     unsafe {
         ptr::copy_nonoverlapping(s.as_ptr(), r.raw as *mut u8, s.len());
@@ -505,10 +501,11 @@ fn alloc_caml_bytes(token: GCtoken, s: String) -> GCResult1<String> {
     r
 }
 
-fn alloc_caml_bigstring(_token: GCtoken, v: &[u8]) -> GCResult1<&'static [u8]> {
+pub fn alloc_caml_bigstring(_token: GCtoken, v: &[u8]) -> GCResult1<&'static [u8]> {
     GCResult1::of(unsafe { caml_ba_alloc_dims(3, 1 , v.as_ptr() , v.len() as i64) })
 }
 
+#[macro_export]
 macro_rules! call {
     {
         $fn:ident
@@ -519,6 +516,7 @@ macro_rules! call {
     }}
 }
 
+#[macro_export]
 macro_rules! camlmod {
     {
         $(
@@ -560,110 +558,3 @@ macro_rules! camlmod {
     };
 }
 
-camlmod!{
-    fn tostring(gc, p: Pair<&str, OCamlInt>) -> &str {
-        let pv = p.var(gc);
-        let msg = format!("str: {}, int: {}",
-                           p.fst().as_str(),
-                          p.snd().as_int());        
-        let ret = call!{ alloc_caml_string(gc, &msg) };
-
-        let _msg2 = format!("str: {}", pv.get(gc).fst().as_str());
-        ret
-    }
-
-    fn mkpair(gc, x: AA, y: BB) -> Pair<AA, BB> {
-        let pair = call!{ alloc_caml_pair(gc, 0, x, y)};
-        pair
-    }
-
-    fn strtail(gc, x: &str) -> Option<&str> {
-        let b = x.as_str();
-        if b.is_empty() {
-            call!{ none(gc, ) }
-        } else {
-            call!{ alloc_caml_some(gc, call!{alloc_caml_string(gc, &b[1..])}) }
-        }
-    }
-
-    fn bytestail(gc, x: String) -> Option<String> {
-        let b = x.as_bytes();
-        if b.is_empty() {
-            call!{ none(gc, ) }
-        } else {
-            call!{ alloc_caml_some(gc, call!{alloc_caml_bytes(gc, String::from_utf8(b[1..].to_vec()).unwrap())}) }
-        }
-    }
-
-    fn somestr(gc, x: OCamlInt) -> Option<&str> {
-        let s = x.as_int().to_string();
-        let pair = call!{ alloc_caml_some(gc, call!{alloc_caml_string(gc, &s)} ) };
-        pair
-    }
-
-    fn triple(gc, x: AA) -> Pair<AA, Pair<AA, AA>> {
-        let vx = x.var(gc);
-        let snd = call!{alloc_caml_pair(gc, 0, x, x)};
-        call!{ alloc_caml_pair(gc, 0, vx.get(gc), snd) }
-    }
-
-    fn bigstrtail(gc, x: &[u8]) -> Option<&[u8]> {
-        let v = x.as_slice();
-        if v.len() == 0 {
-            call!{ none(gc, ) }
-        } else {
-            call!{ alloc_caml_some(gc, call!{alloc_caml_bigstring(gc, &v[1..])}) }
-        }
-    }
-    
-    fn printbigstring(gc, x: &[u8]) -> &str {
-        let x = x.as_slice();
-        for i in 0..x.len() {
-            print!("{}", x[i] as char);
-        }
-        print!("\n");
-        
-        let msg = "";
-        call!{ alloc_caml_string(gc, msg) }
-    }
-
-    fn printchar(gc, x: char) -> &str {
-        let x = x.as_char();
-        println!("{} ", x);
-        
-        let msg = "";
-        call!{ alloc_caml_string(gc, &msg) }
-    }
-
-    fn printint(gc, x: OCamlInt) -> &str {
-        let x = x.as_int();
-        println!("{} ", x );
-        
-        let msg = "";
-        call!{ alloc_caml_string(gc, msg) }
-    }
-
-    fn printint64(gc, x: i64) -> &str {
-        let x = x.as_i64();
-        println!("{} ", x);
-        
-        let msg = "";
-        call!{ alloc_caml_string(gc, msg) }
-    }
-
-    fn inc(gc, x: OCamlInt) -> OCamlInt {
-        of_int(x.as_int() + 1)
-    }
-
-    fn inc64(gc, x: i64) -> i64 {
-        unsafe { Val::new(gc, caml_copy_int64(x.as_i64() + 1)) }
-    }
-
-    fn atoi(gc, x: char) -> OCamlInt {
-        of_int(x.as_char() as i64)
-    }
-    
-    fn itoa(gc, x: OCamlInt) -> char {
-        of_char(x.as_int() as u8 as char)
-    }
-}

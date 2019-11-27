@@ -1,4 +1,0 @@
-(executable
- (public_name main)
- (modules main)
- (libraries rusty))

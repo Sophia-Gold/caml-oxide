@@ -4,7 +4,7 @@ let to_string () =
   Alcotest.(check string)
     "string from tuple"
     "str: hello, int: 42"
-    (Rusty.tostring ("hello", 42))
+    (Rusty.tuple_to_string ("hello", 42))
 
 let string_tail () =
   Alcotest.(check string)

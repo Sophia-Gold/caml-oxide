@@ -1,0 +1,15 @@
+(rule
+ (targets rusty.ml)
+ (deps (:gen ../../util/printmod.exe))
+ (action (with-stdout-to %{targets} (run %{gen}))))
+
+(library
+ (name rusty)
+ (modules rusty)
+ (libraries unix threads bigstring)
+ (c_library_flags -lpthread core/target/debug/libdmz.a caml/allocpair.o example/target/debug/librusty.a))
+
+(executable
+ (public_name main)
+ (modules main)
+ (libraries rusty))

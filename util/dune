@@ -1,0 +1,11 @@
+(executable
+ (name printmod)
+ (modules printmod)
+ (libraries unix threads)
+ (link_deps ../core/target/debug/libdmz.a allocpair.o ../example/target/debug/librusty.a)
+ (link_flags -thread -ccopt -pthread core/target/debug/libdmz.a util/allocpair.o example/target/debug/librusty.a))
+
+(rule
+ (targets allocpair.o)
+ (deps (:source allocpair.c))
+ (action (run %{ocamlopt} -thread -ccopt -pthread %{source} -o %{targets})))
