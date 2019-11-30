@@ -1,4 +1,3 @@
-// #[macro_use(call, camlmod)]
 extern crate dmz;
 
 use dmz::*;
@@ -10,7 +9,7 @@ camlmod!{
         let msg = format!("str: {}, int: {}",
                            p.fst().as_str(),
                           p.snd().as_int());        
-        let ret = call!{ alloc_caml_string(gc, &msg) };
+        let ret = call!{ alloc_string(gc, &msg) };
 
         let _msg2 = format!("str: {}", pv.get(gc).fst().as_str());
         ret
@@ -21,14 +20,14 @@ camlmod!{
     //     let msg = format!("str: {}, int: {}",
     //                        p.fst().as_str(),
     //                       p.snd().as_int());        
-    //     let ret = call!{ alloc_caml_string(gc, &msg) };
+    //     let ret = call!{ alloc_string(gc, &msg) };
 
     //     let _msg2 = format!("str: {}", pv.get(gc).fst().as_str());
     //     ret
     // }
 
     fn mkpair(gc, x: AA, y: BB) -> Pair<AA, BB> {
-        let pair = call!{ alloc_caml_pair(gc, 0, x, y)};
+        let pair = call!{ alloc_pair(gc, 0, x, y)};
         pair
     }
 
@@ -37,7 +36,7 @@ camlmod!{
         if b.is_empty() {
             call!{ none(gc, ) }
         } else {
-            call!{ alloc_caml_some(gc, call!{alloc_caml_string(gc, &b[1..])}) }
+            call!{ alloc_some(gc, call!{alloc_string(gc, &b[1..])}) }
         }
     }
 
@@ -46,20 +45,20 @@ camlmod!{
         if b.is_empty() {
             call!{ none(gc, ) }
         } else {
-            call!{ alloc_caml_some(gc, call!{alloc_caml_bytes(gc, String::from_utf8(b[1..].to_vec()).unwrap())}) }
+            call!{ alloc_some(gc, call!{alloc_bytes(gc, String::from_utf8(b[1..].to_vec()).unwrap())}) }
         }
     }
 
     fn somestr(gc, x: OCamlInt) -> Option<&str> {
         let s = x.as_int().to_string();
-        let pair = call!{ alloc_caml_some(gc, call!{alloc_caml_string(gc, &s)} ) };
+        let pair = call!{ alloc_some(gc, call!{alloc_string(gc, &s)} ) };
         pair
     }
 
     fn triple(gc, x: AA) -> Pair<AA, Pair<AA, AA>> {
         let vx = x.var(gc);
-        let snd = call!{alloc_caml_pair(gc, 0, x, x)};
-        call!{ alloc_caml_pair(gc, 0, vx.get(gc), snd) }
+        let snd = call!{alloc_pair(gc, 0, x, x)};
+        call!{ alloc_pair(gc, 0, vx.get(gc), snd) }
     }
 
     fn bigstrtail(gc, x: &[u8]) -> Option<&[u8]> {
@@ -67,7 +66,7 @@ camlmod!{
         if v.len() == 0 {
             call!{ none(gc, ) }
         } else {
-            call!{ alloc_caml_some(gc, call!{alloc_caml_bigstring(gc, &v[1..])}) }
+            call!{ alloc_some(gc, call!{alloc_bigstring(gc, &v[1..])}) }
         }
     }
     
@@ -79,7 +78,7 @@ camlmod!{
         print!("\n");
         
         let msg = "";
-        call!{ alloc_caml_string(gc, msg) }
+        call!{ alloc_string(gc, msg) }
     }
 
     fn printchar(gc, x: char) -> &str {
@@ -87,7 +86,7 @@ camlmod!{
         println!("{} ", x);
         
         let msg = "";
-        call!{ alloc_caml_string(gc, &msg) }
+        call!{ alloc_string(gc, &msg) }
     }
 
     fn printint(gc, x: OCamlInt) -> &str {
@@ -95,7 +94,7 @@ camlmod!{
         println!("{} ", x );
         
         let msg = "";
-        call!{ alloc_caml_string(gc, msg) }
+        call!{ alloc_string(gc, msg) }
     }
 
     fn printint64(gc, x: i64) -> &str {
@@ -103,7 +102,7 @@ camlmod!{
         println!("{} ", x);
         
         let msg = "";
-        call!{ alloc_caml_string(gc, msg) }
+        call!{ alloc_string(gc, msg) }
     }
 
     fn inc(gc, x: OCamlInt) -> OCamlInt {

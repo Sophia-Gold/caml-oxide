@@ -4,19 +4,19 @@ let to_string () =
   Alcotest.(check string)
     "string from tuple"
     "str: hello, int: 42"
-    (Rusty.tuple_to_string ("hello", 42))
+    (Externals.tuple_to_string ("hello", 42))
 
 let string_tail () =
   Alcotest.(check string)
     "tail of string"
     "ello"
-    (match Rusty.strtail "hello" with Some s -> s | None -> "?")
+    (match Externals.strtail "hello" with Some s -> s | None -> "?")
 
 let bytes_tail () =
   Alcotest.(check string)
     "tail of bytes"
     "ello"
-    (match Rusty.bytestail (Bytes.of_string "hello") with
+    (match Externals.bytestail (Bytes.of_string "hello") with
      | Some s -> (Bytes.unsafe_to_string s)
      | None -> "?")
 
@@ -24,14 +24,14 @@ let bigstring_tail () =
   Alcotest.(check bigstring)
     "tail of bigstring"
     (Bigstring.of_string "ELLO")
-    (match Rusty.bigstrtail (Bigstring.of_string "HELLO") with
+    (match Externals.bigstrtail (Bigstring.of_string "HELLO") with
      | Some bs -> bs
      | None -> (Bigstring.of_string "?"))
 
-let inc () = Alcotest.(check int) "increment int" 43 (Rusty.inc 42)
-let inc64 () = Alcotest.(check int64) "increment int64" 43L (Rusty.inc64 42L)
-let atoi () = Alcotest.(check int) "convert char to int" 42 (Rusty.atoi '*')
-let itoa () = Alcotest.(check char) "convert int to char" '*' (Rusty.itoa 42)
+let inc () = Alcotest.(check int) "increment int" 43 (Externals.inc 42)
+let inc64 () = Alcotest.(check int64) "increment int64" 43L (Externals.inc64 42L)
+let atoi () = Alcotest.(check int) "convert char to int" 42 (Externals.atoi '*')
+let itoa () = Alcotest.(check char) "convert int to char" '*' (Externals.itoa 42)
 
 let tests = [
     "tuple to string",      `Quick, to_string ;

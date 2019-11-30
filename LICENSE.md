@@ -1,3 +1,4 @@
+Copyright (c) 2018 Stephen Dolan
 Copyright (c) 2019 Sophia Gold
 
 Permission to use, copy, modify, and/or distribute this software for any

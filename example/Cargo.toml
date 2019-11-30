@@ -7,5 +7,5 @@ authors = ["Stephen Dolan <stephen.dolan@cl.cam.ac.uk>, Sophia Gold <sophiagoldn
 dmz = { path = '../core' }
 
 [lib]
-name = "rusty"
+name = "externals"
 crate-type = ["staticlib"]

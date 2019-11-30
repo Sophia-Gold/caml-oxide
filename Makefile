@@ -1,12 +1,12 @@
-main: externs
+main: externals
 	dune build example/caml/main.exe
 
-externs:
+externals:
 	cd core && cargo build
 	cd example && cargo build
 	dune build util/printmod.exe
 
-test: rusty
+test: externals
 	dune runtest
 
 clean:

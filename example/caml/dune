@@ -1,15 +1,15 @@
 (rule
- (targets rusty.ml)
+ (targets externals.ml)
  (deps (:gen ../../util/printmod.exe))
  (action (with-stdout-to %{targets} (run %{gen}))))
 
 (library
- (name rusty)
- (modules rusty)
+ (name externals)
+ (modules externals)
  (libraries unix threads bigstring)
- (c_library_flags -lpthread core/target/debug/libdmz.a util/allocpair.o example/target/debug/librusty.a))
+ (c_library_flags -lpthread util/allocpair.o example/target/debug/libexternals.a))
 
 (executable
  (public_name main)
  (modules main)
- (libraries rusty))
+ (libraries externals))

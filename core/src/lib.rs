@@ -460,7 +460,7 @@ impl<T> GCResult2<T> {
 
 pub struct GCtoken {}
 
-pub fn alloc_caml_pair<'a, A: MLType, B: MLType>(
+pub fn alloc_pair<'a, A: MLType, B: MLType>(
     _token: GCtoken,
     tag: Uintnat,
     a: Val<'a, A>,
@@ -473,35 +473,35 @@ pub fn none<A: MLType>(_token: GCtoken) -> GCResult1<Option<A>> {
     GCResult1::of(1)
 }
 
-pub fn alloc_caml_some<'a, A: MLType>(_token: GCtoken, a: Val<'a, A>) -> GCResult1<Option<A>> {
+pub fn alloc_some<'a, A: MLType>(_token: GCtoken, a: Val<'a, A>) -> GCResult1<Option<A>> {
     GCResult1::of(unsafe { caml_alloc_cell(0, a.eval()) })
 }
 
-fn alloc_blank_caml_string(_token: GCtoken, len: usize) -> GCResult1<&'static str> {
+fn alloc_blank_string(_token: GCtoken, len: usize) -> GCResult1<&'static str> {
     GCResult1::of(unsafe { caml_alloc_string(len) })
 }
 
-pub fn alloc_caml_string(token: GCtoken, s: &str) -> GCResult1<&'static str> {
-    let r = alloc_blank_caml_string(token, s.len());
+pub fn alloc_string(token: GCtoken, s: &str) -> GCResult1<&'static str> {
+    let r = alloc_blank_string(token, s.len());
     unsafe {
         ptr::copy_nonoverlapping(s.to_string().as_ptr(), r.raw as *mut u8, s.len());
     }
     r
 }
 
-fn alloc_blank_caml_bytes(_token: GCtoken, len: usize) -> GCResult1<String> {
+fn alloc_blank_bytes(_token: GCtoken, len: usize) -> GCResult1<String> {
     GCResult1::of(unsafe { caml_alloc_string(len) })
 }
 
-pub fn alloc_caml_bytes(token: GCtoken, s: String) -> GCResult1<String> {
-    let r = alloc_blank_caml_bytes(token, s.len());
+pub fn alloc_bytes(token: GCtoken, s: String) -> GCResult1<String> {
+    let r = alloc_blank_bytes(token, s.len());
     unsafe {
         ptr::copy_nonoverlapping(s.as_ptr(), r.raw as *mut u8, s.len());
     }
     r
 }
 
-pub fn alloc_caml_bigstring(_token: GCtoken, v: &[u8]) -> GCResult1<&'static [u8]> {
+pub fn alloc_bigstring(_token: GCtoken, v: &[u8]) -> GCResult1<&'static [u8]> {
     GCResult1::of(unsafe { caml_ba_alloc_dims(3, 1 , v.as_ptr() , v.len() as i64) })
 }
 
@@ -536,7 +536,7 @@ macro_rules! camlmod {
             }
         )*
 
-            #[no_mangle]
+        #[no_mangle]
         pub extern fn print_module(_unused: RawValue) -> RawValue {
             $(
                 {
