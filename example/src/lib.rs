@@ -15,17 +15,6 @@ camlmod!{
         ret
     }
 
-    // fn record_to_string(gc, p: Struct<&str, OCamlInt>) -> &str {
-    //     let pv = p.var(gc);
-    //     let msg = format!("str: {}, int: {}",
-    //                        p.fst().as_str(),
-    //                       p.snd().as_int());        
-    //     let ret = call!{ alloc_string(gc, &msg) };
-
-    //     let _msg2 = format!("str: {}", pv.get(gc).fst().as_str());
-    //     ret
-    // }
-
     fn mkpair(gc, x: AA, y: BB) -> Pair<AA, BB> {
         let pair = call!{ alloc_pair(gc, 0, x, y)};
         pair
