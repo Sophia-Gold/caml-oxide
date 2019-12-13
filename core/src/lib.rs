@@ -2,6 +2,10 @@
 #![allow(dead_code)]
 #![allow(non_upper_case_globals)]
 #![allow(non_snake_case)]
+#![feature(core_intrinsics)]
+
+extern crate derive_mltype;
+pub use derive_mltype::MLType;
 
 use std::cell::Cell;
 use std::ptr;
@@ -72,6 +76,7 @@ extern "C" {
 
     fn caml_alloc_cell(tag: Uintnat, a: RawValue) -> RawValue;
     fn caml_alloc_pair(tag: Uintnat, a: RawValue, b: RawValue) -> RawValue;
+    fn caml_alloc_ntuple(numvals: Uintnat, a: RawValue, b: RawValue) -> RawValue;
     fn caml_alloc_string(len: usize) -> RawValue;
     fn caml_alloc_initialized_string(len: usize, contents: *const u8) -> RawValue;
     fn caml_string_length(s: RawValue) -> usize;
@@ -166,7 +171,7 @@ impl<'a, T> Val<'a, T> {
         Var::new(gc, self)
     }
 
-    unsafe fn field<F>(self, i: Uintnat) -> Val<'a, F> {
+    pub unsafe fn field<F>(self, i: Uintnat) -> Val<'a, F> {
         assert!(Tag_val(self.raw) < No_scan_tag);
         assert!(i < Wosize_val(self.raw));
         Val {
@@ -182,6 +187,11 @@ impl<'a, T> Val<'a, T> {
 
 pub trait MLType {
     fn name() -> String;
+
+    // default impl for optional method to open modules containing records
+    fn module_name() -> String {
+        "".to_owned()
+    }
 }
 
 impl MLType for String {
@@ -265,6 +275,10 @@ pub fn type_name<T: MLType>() -> String {
     T::name()
 }
 
+pub fn module_name<T: MLType>() -> String {
+    T::module_name()
+}
+
 pub struct Pair<A: MLType, B: MLType> {
     _a: marker::PhantomData<A>,
     _b: marker::PhantomData<B>,
@@ -274,6 +288,20 @@ impl<A: MLType, B: MLType> MLType for Pair<A, B> {
         format!("({} * {})", A::name(), B::name())
     }
 }
+
+// pub struct Tuple<Vals: Vec<dyn MLType>> {
+//     _vals: marker::PhantomData<Vec<dyn MLType>>,
+// }
+// impl<Vals: Vec<dyn MLType>> MLType for Tuple<Vec<dyn MLType>> {
+//     fn name() -> String {
+//         let tuple_name = "";
+//         for i in 0..(Vals.len() - 1) {
+//             tuple_name.push(format!("{} * ", Vals[i]::name()));
+//         }
+//         tuple_name.push(format!("{}", Vals[Vals.len()]::name()));
+//         tuple_name.to_owned()
+//     }
+// }
 
 pub struct List<A: MLType> {
     _a: marker::PhantomData<A>,
@@ -468,6 +496,13 @@ pub fn alloc_pair<'a, A: MLType, B: MLType>(
     GCResult1::of(unsafe { caml_alloc_pair(tag, a.eval(), b.eval()) })
 }
 
+// pub fn alloc_tuple<'a, Vals: Vec<dyn MLType>>(
+//     _token: GCtoken,
+//     vals: Vec<Val<'a, dyn MLType>>,
+// ) -> GCResult1<Tuple<Vec<dyn MLType>>> {
+//     GCResult1::of(unsafe { caml_alloc_ntuple(vals.len(), vals.eval()) })
+// }
+
 pub fn none<A: MLType>(_token: GCtoken) -> GCResult1<Option<A>> {
     GCResult1::of(1)
 }
@@ -539,6 +574,11 @@ macro_rules! camlmod {
         pub extern fn print_module(_unused: RawValue) -> RawValue {
             $(
                 {
+                    $(
+                        if !module_name::<$ty>().is_empty() {
+                            print!("open {}\n", module_name::<$ty>());
+                        }
+                    )*
                     let mut s = "".to_owned();
                     $(
                         s.push_str(&type_name::<$ty>());

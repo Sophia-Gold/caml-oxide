@@ -1,0 +1,9 @@
+[package]
+name = "derive_mltype"
+version = "0.1.0"
+authors = ["Sophia Gold <sophiagoldnyc@gmail.com>"]
+
+[lib]
+name = "derive_mltype"
+crate-type = ["proc-macro"]
+

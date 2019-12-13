@@ -19,3 +19,13 @@ value caml_alloc_pair(uintnat tag, value a, value b) {
   Field(r, 1) = b;
   CAMLreturn(r);
 }
+
+value caml_alloc_ntuple(uintnat numvals, value *vals) {
+  CAMLparamN(vals, numvals);
+  CAMLlocal1(r);
+  r = caml_alloc(numvals, 0);
+  for(int i = 0; i <= numvals; i++) {
+    Field(r, i) = vals[i];
+  }
+  CAMLreturn(r);
+}

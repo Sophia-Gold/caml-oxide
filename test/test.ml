@@ -28,6 +28,14 @@ let bigstring_tail () =
      | Some bs -> bs
      | None -> (Bigstring.of_string "?"))
 
+type foobar = { foo : int ; bar : int }
+
+let record () =
+  Alcotest.(check int)
+    "pass record from Rust struct"
+    1
+    (Externals.recordfst { foo = 1 ; bar = 2 })
+
 let inc () = Alcotest.(check int) "increment int" 43 (Externals.inc 42)
 let inc64 () = Alcotest.(check int64) "increment int64" 43L (Externals.inc64 42L)
 let atoi () = Alcotest.(check int) "convert char to int" 42 (Externals.atoi '*')
@@ -42,6 +50,7 @@ let tests = [
     "convert char to int",  `Quick, atoi ;
     "convert int to char",  `Quick, itoa ;
     "tail of bigstring",    `Quick, bigstring_tail ;
+    "pass record"           `Quick, record ;
   ]
 
 let () =

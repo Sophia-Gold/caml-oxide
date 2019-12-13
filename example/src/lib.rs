@@ -3,6 +3,19 @@ extern crate dmz;
 use dmz::*;
 use std::io::{self, Write};
 
+//#[derive(MLType)]
+pub struct FooBar(Pair<OCamlInt, OCamlInt>);
+
+impl MLType for FooBar {
+    fn name() -> String {
+        "foobar".to_owned()
+    }
+
+    fn module_name() -> String {
+        "Test".to_owned()
+    }
+} 
+
 camlmod!{
     fn tuple_to_string(gc, p: Pair<&str, OCamlInt>) -> &str {
         let pv = p.var(gc);
@@ -48,6 +61,15 @@ camlmod!{
         let vx = x.var(gc);
         let snd = call!{alloc_pair(gc, 0, x, x)};
         call!{ alloc_pair(gc, 0, vx.get(gc), snd) }
+    }
+    
+    // fn tuple3(gc, x: AA) -> Tuple3<AA, AA, AA>> {
+    //     call!{ alloc_ntuple(gc, x, x, x) }
+    // }
+
+    fn recordfst(gc, x: FooBar) -> OCamlInt {
+        let pair: Val<Pair<OCamlInt, OCamlInt>> = unsafe { x.field(0) };
+        of_int(pair.fst().as_int())
     }
 
     fn bigstrtail(gc, x: &[u8]) -> Option<&[u8]> {
