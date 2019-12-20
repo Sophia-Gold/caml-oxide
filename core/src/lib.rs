@@ -76,7 +76,7 @@ extern "C" {
 
     fn caml_alloc_cell(tag: Uintnat, a: RawValue) -> RawValue;
     fn caml_alloc_pair(tag: Uintnat, a: RawValue, b: RawValue) -> RawValue;
-    fn caml_alloc_ntuple(numvals: Uintnat, a: RawValue, b: RawValue) -> RawValue;
+    pub fn caml_alloc_ntuple(numvals: Uintnat, vals: RawValue) -> RawValue;
     fn caml_alloc_string(len: usize) -> RawValue;
     fn caml_alloc_initialized_string(len: usize, contents: *const u8) -> RawValue;
     fn caml_string_length(s: RawValue) -> usize;
@@ -226,7 +226,7 @@ impl MLType for &[u8] {
 
 impl MLType for () {
     fn name() -> String {
-        "Unit".to_owned()
+        "unit".to_owned()
     }
 }
 
@@ -289,6 +289,17 @@ impl<A: MLType, B: MLType> MLType for Pair<A, B> {
     }
 }
 
+pub struct Tuple3<A: MLType, B: MLType, C: MLType> {
+    _a: marker::PhantomData<A>,
+    _b: marker::PhantomData<B>,
+    _c: marker::PhantomData<C>,
+}
+impl<A: MLType, B: MLType, C: MLType> MLType for Tuple3<A, B, C> {
+    fn name() -> String {
+        format!("({} * {} * {})", A::name(), B::name(), C::name())
+    }
+}
+
 // pub struct Tuple<Vals: Vec<dyn MLType>> {
 //     _vals: marker::PhantomData<Vec<dyn MLType>>,
 // }
@@ -301,6 +312,33 @@ impl<A: MLType, B: MLType> MLType for Pair<A, B> {
 //         tuple_name.push(format!("{}", Vals[Vals.len()]::name()));
 //         tuple_name.to_owned()
 //     }
+// }
+
+// macro_rules! tupler {
+//     {
+//         $(
+//             fn $name:ident( $gc:ident, $($arg:ident : $ty:ty),* ) -> $res:ty $body:block
+//         )*
+//     } => {
+//         $(
+//             #[no_mangle]
+//             pub struct Tuple$i<$i.tochar().toupper(): MLType> {
+//                 _$i.tochar(): marker::PhantomData<$i.tochar().toupper()>,
+//             }
+
+            
+
+            
+//                 // with_gc(|$gc| {
+//                 //     $(
+//                 //         let $arg : Val<$ty> = unsafe { Val::new($gc, $arg) };
+//                 //     )*
+//                 //         let retval : Val<$res> = $body;
+//                 //     retval.raw
+//                 // })
+//             }
+//         )*
+//     };
 // }
 
 pub struct List<A: MLType> {
@@ -463,7 +501,7 @@ pub struct GCResult2<T> {
 }
 
 impl<T> GCResult1<T> {
-    fn of(raw: RawValue) -> GCResult1<T> {
+    pub fn of(raw: RawValue) -> GCResult1<T> {
         GCResult1 {
             _marker: Default::default(),
             raw: raw,
@@ -496,11 +534,23 @@ pub fn alloc_pair<'a, A: MLType, B: MLType>(
     GCResult1::of(unsafe { caml_alloc_pair(tag, a.eval(), b.eval()) })
 }
 
-// pub fn alloc_tuple<'a, Vals: Vec<dyn MLType>>(
+pub fn alloc_tuple3<'a, A: MLType, B: MLType, C: MLType>(
+    _token: GCtoken,
+    a: Val<'a, A>,
+    b: Val<'a, B>,
+    c: Val<'a, C>,
+) -> GCResult1<Tuple3<A, B, C>> {
+    let vals = [a.eval(), b.eval(), c.eval()];
+    GCResult1::of(unsafe { caml_alloc_ntuple(3, vals.as_ptr() as RawValue) })
+}
+
+// how to correctly type this?
+// pub fn alloc_tuple<'a, Vals: MLType>(
 //     _token: GCtoken,
-//     vals: Vec<Val<'a, dyn MLType>>,
-// ) -> GCResult1<Tuple<Vec<dyn MLType>>> {
-//     GCResult1::of(unsafe { caml_alloc_ntuple(vals.len(), vals.eval()) })
+//     vals: Vec<Val<'a, T>>,
+// ) -> GCResult1<T> {
+//     let vals = vals.iter().eval();
+//     GCResult1::of(unsafe { caml_alloc_ntuple(vals.len(), &vals[0] as RawValue) })
 // }
 
 pub fn none<A: MLType>(_token: GCtoken) -> GCResult1<Option<A>> {
@@ -522,6 +572,20 @@ pub fn alloc_string(token: GCtoken, s: &str) -> GCResult1<&'static str> {
     }
     r
 }
+
+// pub trait Alloc<T>: Sized {
+//     fn alloc(token: GCtoken, val: T) -> GCResult1<Self>;
+// }
+
+// impl Alloc<&str> for &'static str {
+//     fn alloc(token: GCtoken, s: &str) -> Self {
+//         let r = alloc_blank_string(token, s.len());
+//         unsafe {
+//             ptr::copy_nonoverlapping(s.to_string().as_ptr(), r.raw as *mut u8, s.len());
+//         }
+//         r
+//     }
+// }g
 
 fn alloc_blank_bytes(_token: GCtoken, len: usize) -> GCResult1<String> {
     GCResult1::of(unsafe { caml_alloc_string(len) })
@@ -576,7 +640,8 @@ macro_rules! camlmod {
                 {
                     $(
                         if !module_name::<$ty>().is_empty() {
-                            print!("open {}\n", module_name::<$ty>());
+                            // print!("open {}\n", module_name::<$ty>());
+                            print!("{}\n", module_name::<$ty>());
                         }
                     )*
                     let mut s = "".to_owned();

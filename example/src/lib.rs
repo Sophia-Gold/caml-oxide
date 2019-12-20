@@ -4,24 +4,51 @@ use dmz::*;
 use std::io::{self, Write};
 
 //#[derive(MLType)]
-pub struct FooBar(Pair<OCamlInt, OCamlInt>);
+pub struct FooBar{
+    _foo: OCamlInt,
+    _bar: OCamlInt,
+}
 
 impl MLType for FooBar {
     fn name() -> String {
         "foobar".to_owned()
     }
-
+   
     fn module_name() -> String {
-        "Test".to_owned()
+        "type foobar = { foo : int ; bar : int }".to_owned()
     }
-} 
+}
+
+trait ValExt<'a, FooBar> {
+    fn foo(self) -> Val<'a, OCamlInt>;
+    
+    fn bar(self) -> Val<'a, OCamlInt>;
+}
+
+impl<'a> ValExt<'a, FooBar> for Val<'a, FooBar> {
+    fn foo(self) -> Val<'a, OCamlInt> {
+        unsafe { self.field(0) }
+    }
+    fn bar(self) -> Val<'a, OCamlInt> {
+        unsafe { self.field(1) }
+    }
+}
+
+pub fn alloc_foobar<'a>(
+    _token: GCtoken,
+    a: Val<'a, OCamlInt>,
+    b: Val<'a, OCamlInt>,
+) -> GCResult1<FooBar> {
+    let vals = [a.eval(), b.eval()];
+    GCResult1::of(unsafe { caml_alloc_ntuple(2, vals.as_ptr() as RawValue) })
+}
 
 camlmod!{
     fn tuple_to_string(gc, p: Pair<&str, OCamlInt>) -> &str {
         let pv = p.var(gc);
         let msg = format!("str: {}, int: {}",
                            p.fst().as_str(),
-                          p.snd().as_int());        
+                          p.snd().as_int());
         let ret = call!{ alloc_string(gc, &msg) };
 
         let _msg2 = format!("str: {}", pv.get(gc).fst().as_str());
@@ -63,14 +90,20 @@ camlmod!{
         call!{ alloc_pair(gc, 0, vx.get(gc), snd) }
     }
     
-    // fn tuple3(gc, x: AA) -> Tuple3<AA, AA, AA>> {
-    //     call!{ alloc_ntuple(gc, x, x, x) }
-    // }
+    fn tuple3(gc, x: AA) -> Tuple3<AA, AA, AA> {
+        // call!{ alloc_tuple(gc, vec![x, x, x]) }
+        call!{ alloc_tuple3(gc, x, x, x) }
+    }
 
     fn recordfst(gc, x: FooBar) -> OCamlInt {
-        let pair: Val<Pair<OCamlInt, OCamlInt>> = unsafe { x.field(0) };
-        of_int(pair.fst().as_int())
+        // let foobar = call! { alloc_foobar(gc, of_int(1), of_int(2)) };
+        // foobar.foo()
+        x.foo()
     }
+
+    // fn recordpassthrough(gc, x: FooBar) -> FooBar {
+    //     x
+    // }
 
     fn bigstrtail(gc, x: &[u8]) -> Option<&[u8]> {
         let v = x.as_slice();
