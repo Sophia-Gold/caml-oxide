@@ -77,7 +77,6 @@ extern "C" {
     fn caml_string_length(s: RawValue) -> usize;
 
     fn caml_ba_alloc_dims(flags: RawValue, dims: RawValue, data: *const u8, len: RawValue) -> RawValue;
-    fn caml_ba_byte_size(s: RawValue) -> usize;
 
     pub fn caml_copy_double(f: f64) -> RawValue;
     pub fn caml_copy_int32(f: i32) -> RawValue;
@@ -347,8 +346,8 @@ impl<'a> Val<'a, &[u8]> {
         let s = self.raw;
         assert!(Tag_val(s) == Custom_tag);
         unsafe { let ba = *(s as *const i64).offset(1 as isize);
-                 // slice::from_raw_parts(ba as *const u8, caml_ba_byte_size(ba))
-                 slice::from_raw_parts(ba as *const u8, 5)}
+                 slice::from_raw_parts(ba as *const u8, *(s as *const i64).offset(5 as isize) as usize)
+        }
     }
 }
 
