@@ -14,7 +14,7 @@ impl MLType for FooBar {
         "foobar".to_owned()
     }
    
-    fn module_name() -> String {
+    fn record_def() -> String {
         "type foobar = { foo : int ; bar : int }".to_owned()
     }
 }
@@ -96,14 +96,12 @@ camlmod!{
     }
 
     fn recordfst(gc, x: FooBar) -> OCamlInt {
-        // let foobar = call! { alloc_foobar(gc, of_int(1), of_int(2)) };
-        // foobar.foo()
         x.foo()
     }
-
-    // fn recordpassthrough(gc, x: FooBar) -> FooBar {
-    //     x
-    // }
+    
+    fn recordsnd(gc, x: FooBar) -> OCamlInt {
+        x.bar()
+    }
 
     fn bigstrtail(gc, x: &[u8]) -> Option<&[u8]> {
         let v = x.as_slice();

@@ -28,8 +28,6 @@ let bigstring_tail () =
      | Some bs -> bs
      | None -> (Bigstring.of_string "?"))
 
-(* type foobar = { foo : int ; bar : int } *)
-
 let recordfst () =
   let r : Externals.foobar = { foo = 1 ; bar = 2 } in
   Alcotest.(check int)
@@ -37,11 +35,13 @@ let recordfst () =
     1
     (Externals.recordfst r)
 
-(* let recordpassthru () =
- *   Alcotest.(check int)
- *     "pass OCaml record through Rust"
- *     1
- *     (Externals.recordpassthrough { foo = 1 ; bar = 2 }).foo *)
+let recordsnd () =
+  let r : Externals.foobar = { foo = 1 ; bar = 2 } in
+  Alcotest.(check int)
+    "access field in record"
+    2
+    (Externals.recordsnd r)
+
 
 let construct_three_tuple () =
   Alcotest.(check int)
@@ -64,8 +64,8 @@ let tests = [
     "convert int to char",                 `Quick, itoa ;
     "tail of bigstring",                   `Quick, bigstring_tail ;
     "construct three-tuple",               `Quick, construct_three_tuple ;
-    (* "pass OCaml record through Rust",      `Quick, recordpassthru ; *)
-    "access field in record",              `Quick, recordfst ;
+    "access first field in record",        `Quick, recordfst ;
+    "access second field in record",       `Quick, recordsnd ;
   ]
 
 let () =

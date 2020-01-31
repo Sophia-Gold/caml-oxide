@@ -188,8 +188,8 @@ impl<'a, T> Val<'a, T> {
 pub trait MLType {
     fn name() -> String;
 
-    // default impl for optional method to open modules containing records
-    fn module_name() -> String {
+    // default impl for optional method to define records
+    fn record_def() -> String {
         "".to_owned()
     }
 }
@@ -275,8 +275,8 @@ pub fn type_name<T: MLType>() -> String {
     T::name()
 }
 
-pub fn module_name<T: MLType>() -> String {
-    T::module_name()
+pub fn record_def<T: MLType>() -> String {
+    T::record_def()
 }
 
 pub struct Pair<A: MLType, B: MLType> {
@@ -299,47 +299,6 @@ impl<A: MLType, B: MLType, C: MLType> MLType for Tuple3<A, B, C> {
         format!("({} * {} * {})", A::name(), B::name(), C::name())
     }
 }
-
-// pub struct Tuple<Vals: Vec<dyn MLType>> {
-//     _vals: marker::PhantomData<Vec<dyn MLType>>,
-// }
-// impl<Vals: Vec<dyn MLType>> MLType for Tuple<Vec<dyn MLType>> {
-//     fn name() -> String {
-//         let tuple_name = "";
-//         for i in 0..(Vals.len() - 1) {
-//             tuple_name.push(format!("{} * ", Vals[i]::name()));
-//         }
-//         tuple_name.push(format!("{}", Vals[Vals.len()]::name()));
-//         tuple_name.to_owned()
-//     }
-// }
-
-// macro_rules! tupler {
-//     {
-//         $(
-//             fn $name:ident( $gc:ident, $($arg:ident : $ty:ty),* ) -> $res:ty $body:block
-//         )*
-//     } => {
-//         $(
-//             #[no_mangle]
-//             pub struct Tuple$i<$i.tochar().toupper(): MLType> {
-//                 _$i.tochar(): marker::PhantomData<$i.tochar().toupper()>,
-//             }
-
-            
-
-            
-//                 // with_gc(|$gc| {
-//                 //     $(
-//                 //         let $arg : Val<$ty> = unsafe { Val::new($gc, $arg) };
-//                 //     )*
-//                 //         let retval : Val<$res> = $body;
-//                 //     retval.raw
-//                 // })
-//             }
-//         )*
-//     };
-// }
 
 pub struct List<A: MLType> {
     _a: marker::PhantomData<A>,
@@ -544,7 +503,6 @@ pub fn alloc_tuple3<'a, A: MLType, B: MLType, C: MLType>(
     GCResult1::of(unsafe { caml_alloc_ntuple(3, vals.as_ptr() as RawValue) })
 }
 
-// how to correctly type this?
 // pub fn alloc_tuple<'a, Vals: MLType>(
 //     _token: GCtoken,
 //     vals: Vec<Val<'a, T>>,
@@ -572,20 +530,6 @@ pub fn alloc_string(token: GCtoken, s: &str) -> GCResult1<&'static str> {
     }
     r
 }
-
-// pub trait Alloc<T>: Sized {
-//     fn alloc(token: GCtoken, val: T) -> GCResult1<Self>;
-// }
-
-// impl Alloc<&str> for &'static str {
-//     fn alloc(token: GCtoken, s: &str) -> Self {
-//         let r = alloc_blank_string(token, s.len());
-//         unsafe {
-//             ptr::copy_nonoverlapping(s.to_string().as_ptr(), r.raw as *mut u8, s.len());
-//         }
-//         r
-//     }
-// }g
 
 fn alloc_blank_bytes(_token: GCtoken, len: usize) -> GCResult1<String> {
     GCResult1::of(unsafe { caml_alloc_string(len) })
@@ -635,15 +579,39 @@ macro_rules! camlmod {
         )*
 
         #[no_mangle]
-        pub extern fn print_module(_unused: RawValue) -> RawValue {
+        pub extern fn print_record_def(_unused: RawValue) -> RawValue {
+            let mut records : Vec<String> = vec![];
             $(
                 {
                     $(
-                        if !module_name::<$ty>().is_empty() {
-                            // print!("open {}\n", module_name::<$ty>());
-                            print!("{}\n", module_name::<$ty>());
+                        let mut def = &record_def::<$ty>();
+                        if !def.is_empty() && !records.contains(def) {
+                            print!("{}\n", def);
+                            records.push(def.to_string());
                         }
                     )*
+                }
+            )*
+            1
+        }
+
+        #[no_mangle]
+        pub extern fn print_module(_unused: RawValue) -> RawValue {
+            let mut records : Vec<String> = vec![];
+            $(
+                {
+                    $(
+                        let mut def = &record_def::<$ty>();
+                        if !def.is_empty() && !records.contains(def) {
+                            print!("{}\n", def);
+                            records.push(def.to_string());
+                        }
+                    )*
+                }
+            )*
+                print!("\n");
+            $(
+                {
                     let mut s = "".to_owned();
                     $(
                         s.push_str(&type_name::<$ty>());
@@ -661,4 +629,3 @@ macro_rules! camlmod {
         }
     };
 }
-
