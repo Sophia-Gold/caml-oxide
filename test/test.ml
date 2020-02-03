@@ -42,6 +42,17 @@ let recordsnd () =
     2
     (Externals.recordsnd r)
 
+let div () =
+  Alcotest.(check int)
+    "division"
+    1
+    (match Externals.div 2 2 with Ok x -> x | Error _ -> 0)
+
+let divbyzero () =
+  Alcotest.(check string)
+    "division by zero"
+    "Divide by zero"
+    (match Externals.div 2 0 with Ok x -> string_of_int x | Error s -> s)
 
 let construct_three_tuple () =
   Alcotest.(check int)
@@ -66,6 +77,8 @@ let tests = [
     "construct three-tuple",               `Quick, construct_three_tuple ;
     "access first field in record",        `Quick, recordfst ;
     "access second field in record",       `Quick, recordsnd ;
+    "division",                            `Quick, div ;
+    "division by zero",                    `Quick, divbyzero ;
   ]
 
 let () =

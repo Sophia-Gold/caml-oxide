@@ -5,8 +5,8 @@ use std::io::{self, Write};
 
 //#[derive(MLType)]
 pub struct FooBar{
-    _foo: OCamlInt,
-    _bar: OCamlInt,
+    _foo: int,
+    _bar: int,
 }
 
 impl MLType for FooBar {
@@ -14,37 +14,41 @@ impl MLType for FooBar {
         "foobar".to_owned()
     }
    
-    fn record_def() -> String {
+    fn type_def() -> String {
         "type foobar = { foo : int ; bar : int }".to_owned()
+    }
+
+    fn interface() -> String {
+        "type foobar".to_owned()
     }
 }
 
 trait ValExt<'a, FooBar> {
-    fn foo(self) -> Val<'a, OCamlInt>;
+    fn foo(self) -> Val<'a, int>;
     
-    fn bar(self) -> Val<'a, OCamlInt>;
+    fn bar(self) -> Val<'a, int>;
 }
 
 impl<'a> ValExt<'a, FooBar> for Val<'a, FooBar> {
-    fn foo(self) -> Val<'a, OCamlInt> {
+    fn foo(self) -> Val<'a, int> {
         unsafe { self.field(0) }
     }
-    fn bar(self) -> Val<'a, OCamlInt> {
+    fn bar(self) -> Val<'a, int> {
         unsafe { self.field(1) }
     }
 }
 
 pub fn alloc_foobar<'a>(
     _token: GCtoken,
-    a: Val<'a, OCamlInt>,
-    b: Val<'a, OCamlInt>,
+    a: Val<'a, int>,
+    b: Val<'a, int>,
 ) -> GCResult1<FooBar> {
     let vals = [a.eval(), b.eval()];
     GCResult1::of(unsafe { caml_alloc_ntuple(2, vals.as_ptr() as RawValue) })
 }
 
 camlmod!{
-    fn tuple_to_string(gc, p: Pair<&str, OCamlInt>) -> &str {
+    fn tuple_to_string(gc, p: Pair<&str, int>) -> &str {
         let pv = p.var(gc);
         let msg = format!("str: {}, int: {}",
                            p.fst().as_str(),
@@ -78,7 +82,7 @@ camlmod!{
         }
     }
 
-    fn somestr(gc, x: OCamlInt) -> Option<&str> {
+    fn somestr(gc, x: int) -> Option<&str> {
         let s = x.as_int().to_string();
         let pair = call!{ alloc_some(gc, call!{alloc_string(gc, &s)} ) };
         pair
@@ -95,11 +99,11 @@ camlmod!{
         call!{ alloc_tuple3(gc, x, x, x) }
     }
 
-    fn recordfst(gc, x: FooBar) -> OCamlInt {
+    fn recordfst(gc, x: FooBar) -> int {
         x.foo()
     }
     
-    fn recordsnd(gc, x: FooBar) -> OCamlInt {
+    fn recordsnd(gc, x: FooBar) -> int {
         x.bar()
     }
 
@@ -131,7 +135,7 @@ camlmod!{
         call!{ alloc_string(gc, &msg) }
     }
 
-    fn printint(gc, x: OCamlInt) -> &str {
+    fn printint(gc, x: int) -> &str {
         let x = x.as_int();
         println!("{} ", x );
         
@@ -147,7 +151,7 @@ camlmod!{
         call!{ alloc_string(gc, msg) }
     }
 
-    fn inc(gc, x: OCamlInt) -> OCamlInt {
+    fn inc(gc, x: int) -> int {
         of_int(x.as_int() + 1)
     }
 
@@ -155,11 +159,20 @@ camlmod!{
         unsafe { Val::new(gc, caml_copy_int64(x.as_i64() + 1)) }
     }
 
-    fn atoi(gc, x: char) -> OCamlInt {
+    fn atoi(gc, x: char) -> int {
         of_int(x.as_char() as i64)
     }
     
-    fn itoa(gc, x: OCamlInt) -> char {
+    fn itoa(gc, x: int) -> char {
         of_char(x.as_int() as u8 as char)
+    }
+
+    fn div(gc, a: int, b: int) -> Result<int> {
+        if b.as_int() != 0 {
+            call!{ alloc_ok(gc, of_int(a.as_int() / b.as_int())) }
+        } else {
+            let msg = call!{ alloc_string(gc, "Divide by zero") };
+            call!{ alloc_error(gc, msg) }
+        }
     }
 }

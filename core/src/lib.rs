@@ -20,7 +20,8 @@ type intnat = i64;
 pub type RawValue = intnat;
 
 // OCaml ints are 63 bit, thus this type loses 1 bit of precision across the FFI boundary
-pub struct OCamlInt(i64);
+#[allow(non_camel_case_types)]
+pub struct int(i64);
 
 //const Max_young_wosize : usize = 256;
 
@@ -185,12 +186,19 @@ impl<'a, T> Val<'a, T> {
     }
 }
 
+// pub trait MLType where Self: Sized {
 pub trait MLType {
     fn name() -> String;
 
     // default impl for optional method to define records
-    fn record_def() -> String {
+    fn type_def() -> String {
         "".to_owned()
+    }
+
+    // default impl for .mli file
+    fn interface() -> String {
+        // type_def::<Self>()
+        "?".to_owned()
     }
 }
 
@@ -230,7 +238,7 @@ impl MLType for () {
     }
 }
 
-impl MLType for OCamlInt {
+impl MLType for int {
     fn name() -> String {
         "int".to_owned()
     }
@@ -275,8 +283,8 @@ pub fn type_name<T: MLType>() -> String {
     T::name()
 }
 
-pub fn record_def<T: MLType>() -> String {
-    T::record_def()
+pub fn type_def<T: MLType>() -> String {
+    T::type_def()
 }
 
 pub struct Pair<A: MLType, B: MLType> {
@@ -315,6 +323,15 @@ pub struct Option<A: MLType> {
 impl<A: MLType> MLType for Option<A> {
     fn name() -> String {
         format!("{} option", A::name())
+    }
+}
+
+pub struct Result<A: MLType> {
+    _a: marker::PhantomData<A>,
+}
+impl<A: MLType> MLType for Result<A> {
+    fn name() -> String {
+        format!("({}, string) result", A::name())
     }
 }
 
@@ -392,7 +409,7 @@ impl<'a> Val<'a, i64> {
     }
 }
 
-impl<'a> Val<'a, OCamlInt> {
+impl<'a> Val<'a, int> {
     pub fn as_int(self) -> intnat {
         assert!(!Is_block(self.raw));
         self.raw >> 1
@@ -401,7 +418,7 @@ impl<'a> Val<'a, OCamlInt> {
 
 
 
-pub fn of_int(n: i64) -> Val<'static, OCamlInt> {
+pub fn of_int(n: i64) -> Val<'static, int> {
     Val {
         _marker: Default::default(),
         raw: (n << 1) | 1,
@@ -519,6 +536,14 @@ pub fn alloc_some<'a, A: MLType>(_token: GCtoken, a: Val<'a, A>) -> GCResult1<Op
     GCResult1::of(unsafe { caml_alloc_cell(0, a.eval()) })
 }
 
+pub fn alloc_ok<'a, A: MLType>(_token: GCtoken, a: Val<'a, A>) -> GCResult1<Result<A>> {
+    GCResult1::of(unsafe { caml_alloc_cell(0, a.eval()) })
+}
+
+pub fn alloc_error<'a, A: MLType>(_token: GCtoken, a: Val<'a, &str>) -> GCResult1<Result<A>> {
+    GCResult1::of(unsafe { caml_alloc_cell(1, a.eval()) })
+}
+
 fn alloc_blank_string(_token: GCtoken, len: usize) -> GCResult1<&'static str> {
     GCResult1::of(unsafe { caml_alloc_string(len) })
 }
@@ -579,32 +604,15 @@ macro_rules! camlmod {
         )*
 
         #[no_mangle]
-        pub extern fn print_record_def(_unused: RawValue) -> RawValue {
-            let mut records : Vec<String> = vec![];
+        pub extern fn print_ml(_unused: RawValue) -> RawValue {
+            let mut defs : Vec<String> = vec![];
             $(
                 {
                     $(
-                        let mut def = &record_def::<$ty>();
-                        if !def.is_empty() && !records.contains(def) {
+                        let def = &type_def::<$ty>();
+                        if !def.is_empty() && !defs.contains(def) {
                             print!("{}\n", def);
-                            records.push(def.to_string());
-                        }
-                    )*
-                }
-            )*
-            1
-        }
-
-        #[no_mangle]
-        pub extern fn print_module(_unused: RawValue) -> RawValue {
-            let mut records : Vec<String> = vec![];
-            $(
-                {
-                    $(
-                        let mut def = &record_def::<$ty>();
-                        if !def.is_empty() && !records.contains(def) {
-                            print!("{}\n", def);
-                            records.push(def.to_string());
+                            defs.push(def.to_string());
                         }
                     )*
                 }
@@ -622,6 +630,42 @@ macro_rules! camlmod {
                            stringify!($name),
                            s,
                            stringify!($name));
+                }
+            )*
+                io::stdout().flush().unwrap();
+            1
+        }
+        
+        #[no_mangle]
+        pub extern fn print_mli(_unused: RawValue) -> RawValue {
+            let mut defs : Vec<String> = vec![];
+            $(
+                {
+                    $(
+                        // let def = &interface::<$ty>();
+                        // if def == "?" {
+                        //     let def = &type_def::<$ty>();
+                        // }
+                        let def = &type_def::<$ty>();
+                        if !def.is_empty() && !defs.contains(def) {
+                            print!("{}\n", def);
+                            defs.push(def.to_string());
+                        }
+                    )*
+                }
+            )*
+                print!("\n");
+            $(
+                {
+                    let mut s = "".to_owned();
+                    $(
+                        s.push_str(&type_name::<$ty>());
+                        s.push_str(" -> ");
+                    )*
+                        s.push_str(&type_name::<$res>());
+                    print!("val {} : {}\n",
+                           stringify!($name),
+                           s);
                 }
             )*
                 io::stdout().flush().unwrap();
