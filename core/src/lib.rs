@@ -183,11 +183,10 @@ impl<'a, T> Val<'a, T> {
     }
 }
 
-// pub trait MLType where Self: Sized {
 pub trait MLType {
     fn name() -> String;
 
-    // default impl for optional method to define records
+    // default impl for optional method to define types
     fn type_def() -> String {
         "".to_owned()
     }
