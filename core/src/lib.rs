@@ -4,11 +4,14 @@
 #![allow(non_snake_case)]
 #![feature(core_intrinsics)]
 
+extern crate num_bigint;
+
 use std::cell::Cell;
 use std::ptr;
 use std::marker;
 use std::slice;
 use std::str;
+use num_bigint::BigInt;
 
 type Uintnat = u64;
 
@@ -231,6 +234,12 @@ impl MLType for () {
 impl MLType for int {
     fn name() -> String {
         "int".to_owned()
+    }
+}
+
+impl MLType for BigInt {
+    fn name() -> String {
+        "Z.t".to_owned()
     }
 }
 
