@@ -4,6 +4,9 @@
 #![allow(non_snake_case)]
 #![feature(core_intrinsics)]
 
+extern crate derive_mltype;
+pub use derive_mltype::MLType;
+
 use std::cell::Cell;
 use std::ptr;
 use std::marker;
