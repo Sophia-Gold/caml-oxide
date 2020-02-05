@@ -60,6 +60,12 @@ let divbyzero () =
     "Divide by zero"
     (match Externals.div 2 0 with Ok x -> string_of_int x | Error s -> s)
 
+let nth () =
+  Alcotest.(check int)
+    "nth list element"
+    (42 * 42)
+    (match Externals.nth (List.init 43 (fun x -> x * x)) 42 with Some x -> x | None -> -1)
+
 let inc () = Alcotest.(check int) "increment int" 43 (Externals.inc 42)
 let inc64 () = Alcotest.(check int64) "increment int64" 43L (Externals.inc64 42L)
 let atoi () = Alcotest.(check int) "convert char to int" 42 (Externals.atoi '*')
@@ -79,6 +85,7 @@ let tests = [
     "access second field in record",       `Quick, recordsnd ;
     "division",                            `Quick, div ;
     "division by zero",                    `Quick, divbyzero ;
+    "nth list element",                    `Quick, nth ;
   ]
 
 let () =

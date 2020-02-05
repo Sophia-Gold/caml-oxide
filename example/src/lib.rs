@@ -170,4 +170,14 @@ camlmod!{
             call!{ alloc_error(gc, call!{ alloc_string(gc, "Divide by zero") }) }
         }
     }
+
+    fn nth(gc, lst: List<AA>, i: int) -> Option<AA> {
+        let v = lst.as_vec();
+        let i = i.as_int() as usize;
+        if i >= v.len(){
+            call!{ none(gc, ) }
+        } else {
+            call!{ alloc_some(gc, v[i]) }
+        }
+    }
 }

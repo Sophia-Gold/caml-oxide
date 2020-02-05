@@ -341,6 +341,21 @@ impl<'a, A: MLType> Val<'a, List<A>> {
             CList::Nil
         }
     }
+
+    pub fn as_vec(self) -> Vec<Val<'a, A>> {
+        let mut lst = self;
+        let mut vec = vec![];
+        loop {
+            match lst.as_list() {
+                CList::Nil => break, 
+                CList::Cons {x, xs } => {
+                    vec.push(x);
+                    lst = xs;
+                },
+            }
+        }
+        vec
+    }
 }
 
 impl<'a, A: MLType, B: MLType> Val<'a, Pair<A, B>> {
