@@ -187,9 +187,15 @@ impl<'a, T> Val<'a, T> {
 pub trait MLType {
     fn name() -> String;
 
-    // default impl for optional method to define records
+    // default impl for optional method to define types
     fn type_def() -> String {
         "".to_owned()
+    }
+
+    // default impl for optional method for .mli file
+    fn interface() -> String {
+        // type_def::<Self>()
+        "?".to_owned()
     }
 }
 
@@ -610,7 +616,7 @@ macro_rules! camlmod {
         )*
 
         #[no_mangle]
-        pub extern fn printmod(_unused: RawValue) -> RawValue {
+        pub extern fn print_ml(_unused: RawValue) -> RawValue {
             let mut defs : Vec<String> = vec![];
             $(
                 {
@@ -636,6 +642,42 @@ macro_rules! camlmod {
                            stringify!($name),
                            s,
                            stringify!($name));
+                }
+            )*
+                io::stdout().flush().unwrap();
+            1
+        }
+        
+        #[no_mangle]
+        pub extern fn print_mli(_unused: RawValue) -> RawValue {
+            let mut defs : Vec<String> = vec![];
+            $(
+                {
+                    $(
+                        let def = &interface::<$ty>();
+                        if def == "?" {
+                            let def = &type_def::<$ty>();
+                        }
+                        let def = &type_def::<$ty>();
+                        if !def.is_empty() && !defs.contains(def) {
+                            print!("{}\n", def);
+                            defs.push(def.to_string());
+                        }
+                    )*
+                }
+            )*
+                print!("\n");
+            $(
+                {
+                    let mut s = "".to_owned();
+                    $(
+                        s.push_str(&type_name::<$ty>());
+                        s.push_str(" -> ");
+                    )*
+                        s.push_str(&type_name::<$res>());
+                    print!("val {} : {}\n",
+                           stringify!($name),
+                           s);
                 }
             )*
                 io::stdout().flush().unwrap();

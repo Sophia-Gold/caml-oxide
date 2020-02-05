@@ -17,6 +17,10 @@ impl MLType for FooBar {
     fn type_def() -> String {
         "type foobar = { foo : int ; bar : int }".to_owned()
     }
+
+    fn interface() -> String {
+        "type foobar".to_owned()
+    }
 }
 
 trait ValExt<'a, FooBar> {

@@ -4,15 +4,27 @@
  (action (run %{ocamlopt} -thread -ccopt -pthread %{source} -o %{targets})))
 
 (executable
- (name printmod)
- (modules printmod)
+ (name printml)
+ (modules printml)
+ (libraries unix threads)
+ (link_deps allocpair.o ../target/debug/libexternals.a)
+ (link_flags -thread -ccopt -pthread example/src/allocpair.o example/target/debug/libexternals.a))
+
+(executable
+ (name printmli)
+ (modules printmli)
  (libraries unix threads)
  (link_deps allocpair.o ../target/debug/libexternals.a)
  (link_flags -thread -ccopt -pthread example/src/allocpair.o example/target/debug/libexternals.a))
 
 (rule
  (targets externals.ml)
- (deps (:gen printmod.exe))
+ (deps (:gen printml.exe))
+ (action (with-stdout-to %{targets} (run %{gen}))))
+
+(rule
+ (targets externals.mli)
+ (deps (:gen printmli.exe))
  (action (with-stdout-to %{targets} (run %{gen}))))
 
 (library
