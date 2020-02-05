@@ -5,7 +5,6 @@ authors = ["Stephen Dolan <stephen.dolan@cl.cam.ac.uk>, Sophia Gold <sophiagoldn
 
 [dependencies]
 libc = "0.2.0"
-derive_mltype = { path = "./derive_mltype" }
 
 [lib]
 name = "dmz"

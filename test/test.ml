@@ -28,6 +28,12 @@ let bigstring_tail () =
      | Some bs -> bs
      | None -> (Bigstring.of_string "?"))
 
+let construct_three_tuple () =
+  Alcotest.(check int)
+    "build three-tuple by duplicating int"
+    42
+    (let (_a, _b, c) = (Externals.tuple3 42) in c)
+
 let recordfst () =
   let r : Externals.foobar = { foo = 1 ; bar = 2 } in
   Alcotest.(check int)
@@ -53,12 +59,6 @@ let divbyzero () =
     "division by zero"
     "Divide by zero"
     (match Externals.div 2 0 with Ok x -> string_of_int x | Error s -> s)
-
-let construct_three_tuple () =
-  Alcotest.(check int)
-    "build three-tuple by duplicating int"
-    42
-    (let (_a, _b, c) = (Externals.tuple3 42) in c)
 
 let inc () = Alcotest.(check int) "increment int" 43 (Externals.inc 42)
 let inc64 () = Alcotest.(check int64) "increment int64" 43L (Externals.inc64 42L)

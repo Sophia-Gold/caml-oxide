@@ -17,10 +17,6 @@ impl MLType for FooBar {
     fn type_def() -> String {
         "type foobar = { foo : int ; bar : int }".to_owned()
     }
-
-    fn interface() -> String {
-        "type foobar".to_owned()
-    }
 }
 
 trait ValExt<'a, FooBar> {
@@ -171,8 +167,7 @@ camlmod!{
         if b.as_int() != 0 {
             call!{ alloc_ok(gc, of_int(a.as_int() / b.as_int())) }
         } else {
-            let msg = call!{ alloc_string(gc, "Divide by zero") };
-            call!{ alloc_error(gc, msg) }
+            call!{ alloc_error(gc, call!{ alloc_string(gc, "Divide by zero") }) }
         }
     }
 }
