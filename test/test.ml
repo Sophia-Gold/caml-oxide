@@ -66,6 +66,18 @@ let nth () =
     (42 * 42)
     (match Externals.nth (List.init 43 (fun x -> x * x)) 42 with Some x -> x | None -> -1)
 
+let is_even () =
+  Alcotest.(check bool)
+    "is even?"
+    true
+    (Externals.is_even 42)
+
+let bool_to_int () =
+  Alcotest.(check int)
+    "is even?"
+    0
+    (Externals.bool_to_int false)
+
 let inc () = Alcotest.(check int) "increment int" 43 (Externals.inc 42)
 let inc64 () = Alcotest.(check int64) "increment int64" 43L (Externals.inc64 42L)
 let atoi () = Alcotest.(check int) "convert char to int" 42 (Externals.atoi '*')
@@ -86,6 +98,8 @@ let tests = [
     "division",                            `Quick, div ;
     "division by zero",                    `Quick, divbyzero ;
     "nth list element",                    `Quick, nth ;
+    "is_even",                             `Quick, is_even ;
+    "bool_to_int",                         `Quick, bool_to_int ;
   ]
 
 let () =

@@ -180,4 +180,12 @@ camlmod!{
             call!{ alloc_some(gc, v[i]) }
         }
     }
+
+    fn is_even(gc, x: int) -> bool {
+        of_bool((x.as_int() & 1) == 0)
+    }
+
+    fn bool_to_int(gc, x: bool) -> int {
+        of_int(x.as_bool() as i64)
+    }
 }

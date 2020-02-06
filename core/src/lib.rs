@@ -234,6 +234,12 @@ impl MLType for int {
     }
 }
 
+impl MLType for bool  {
+    fn name() -> String {
+        "bool".to_owned()
+    }
+}
+
 pub struct AA {}
 impl MLType for AA {
     fn name() -> String {
@@ -421,6 +427,14 @@ impl<'a> Val<'a, int> {
     }
 }
 
+impl<'a> Val<'a, bool> {
+    pub fn as_bool(self) -> bool {
+        assert!(!Is_block(self.raw));
+        (self.raw >> 1) != 0
+    }
+}
+
+
 
 
 pub fn of_int(n: i64) -> Val<'static, int> {
@@ -437,6 +451,12 @@ pub fn of_char(n: char) -> Val<'static, char> {
     }
 }
 
+pub fn of_bool(x: bool) -> Val<'static, bool> {
+    Val {
+        _marker: Default::default(),
+        raw: ((x as i64) << 1) | 1,
+    }
+}
 
 
 /* A location registered with the GC */
