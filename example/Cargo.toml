@@ -1,5 +1,5 @@
 [package]
-name = "rusty"
+name = "external"
 version = "0.1.0"
 authors = ["Stephen Dolan <stephen.dolan@cl.cam.ac.uk>, Sophia Gold <sophiagoldnyc@gmail.com>"]
 
