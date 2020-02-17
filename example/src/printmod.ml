@@ -1,3 +1,3 @@
-external printmod : unit -> unit = "printmod"
+external print_module : unit -> unit = "print_module"
 
-let () = printmod ()
+let () = print_module ()
