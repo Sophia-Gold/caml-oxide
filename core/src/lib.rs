@@ -572,7 +572,6 @@ pub fn alloc_error<'a, A: MLType>(_token: GCtoken, a: Val<'a, &str>) -> GCResult
 fn alloc_blank_string(_token: GCtoken, len: usize) -> GCResult1<&'static str> {
     GCResult1::of(unsafe { caml_alloc_string(len) })
 }
-
 pub fn alloc_string(token: GCtoken, s: &str) -> GCResult1<&'static str> {
     let r = alloc_blank_string(token, s.len());
     unsafe {
@@ -581,10 +580,29 @@ pub fn alloc_string(token: GCtoken, s: &str) -> GCResult1<&'static str> {
     r
 }
 
+fn alloc_blank_string_newtype<T: MLType>(_token: GCtoken, len: usize) -> GCResult1<T> {
+    GCResult1::of(unsafe { caml_alloc_string(len) })
+}
+pub fn alloc_string_newtype<T: MLType>(token: GCtoken, s: String) -> GCResult1<T> {
+    let r = alloc_blank_string_newtype(token, s.len());
+    unsafe {
+        ptr::copy_nonoverlapping(s.as_ptr(), r.raw as *mut u8, s.len());
+    }
+    r
+}
+pub fn as_string_newtype<'a, T: MLType>(s: Val<'a, T>) -> String {
+    fn as_bytes<'a, T: MLType>(s: Val<'a, T>) -> &'a [u8] {
+        let s = s.eval();
+        assert!(Tag_val(s) == String_tag);
+        unsafe { slice::from_raw_parts(s as *const u8, caml_string_length(s)) }
+    }
+    str::from_utf8(as_bytes(s)).unwrap().to_string()
+}
+
+
 fn alloc_blank_bytes(_token: GCtoken, len: usize) -> GCResult1<String> {
     GCResult1::of(unsafe { caml_alloc_string(len) })
 }
-
 pub fn alloc_bytes(token: GCtoken, s: String) -> GCResult1<String> {
     let r = alloc_blank_bytes(token, s.len());
     unsafe {
@@ -596,6 +614,7 @@ pub fn alloc_bytes(token: GCtoken, s: String) -> GCResult1<String> {
 pub fn alloc_bigstring(_token: GCtoken, v: &[u8]) -> GCResult1<&'static [u8]> {
     GCResult1::of(unsafe { caml_ba_alloc_dims(3, 1 , v.as_ptr() , v.len() as i64) })
 }
+
 
 #[macro_export]
 macro_rules! call {
@@ -629,7 +648,7 @@ macro_rules! camlmod {
         )*
 
         #[no_mangle]
-        pub extern fn printmod(_unused: RawValue) -> RawValue {
+        pub extern fn print_module(_unused: RawValue) -> RawValue {
             let mut defs : Vec<String> = vec![];
             $(
                 {
