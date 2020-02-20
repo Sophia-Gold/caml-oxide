@@ -65,6 +65,7 @@ struct caml__roots_block {
 const LOCALS_BLOCK_SIZE: usize = 8;
 type LocalsBlock = [Cell<RawValue>; LOCALS_BLOCK_SIZE];
 
+#[derive(Clone)]
 pub struct Gc<'gc> {
     _marker: marker::PhantomData<&'gc i32>,
 }
@@ -79,16 +80,19 @@ extern "C" {
     fn caml_alloc_initialized_string(len: usize, contents: *const u8) -> RawValue;
     fn caml_string_length(s: RawValue) -> usize;
 
-    fn caml_ba_alloc_dims(flags: RawValue, dims: RawValue, data: *const u8, len: RawValue) -> RawValue;
+    fn caml_ba_alloc_dims(flags: RawValue, dims: RawValue, data: *const u8) -> RawValue;    
+    // fn caml_ba_alloc_dims(flags: RawValue, dims: RawValue, data: *const u8, len: intnat) -> RawValue;
 
-    pub fn caml_copy_double(f: f64) -> RawValue;
-    pub fn caml_copy_int32(f: i32) -> RawValue;
-    pub fn caml_copy_int64(f: i64) -> RawValue;
-    pub fn caml_copy_nativeint(f: intnat) -> RawValue;
+
+    fn caml_copy_double(f: f64) -> RawValue;
+    fn caml_copy_int32(f: i32) -> RawValue;
+    fn caml_copy_int64(f: i64) -> RawValue;
+    fn caml_copy_nativeint(f: intnat) -> RawValue;
 }
 
 unsafe fn alloc_gc_cell<'a, 'gc>(_gc: &'a Gc<'gc>) -> &'gc Cell<RawValue> {
     let block = caml_local_roots;
+
     if ((*block).nitems as usize) < LOCALS_BLOCK_SIZE {
         let locals: &'gc LocalsBlock = &*((*block).tables[0] as *mut LocalsBlock);
         let idx = (*block).nitems;
@@ -580,17 +584,22 @@ pub fn alloc_string(token: GCtoken, s: &str) -> GCResult1<&'static str> {
     r
 }
 
-fn alloc_blank_string_newtype<T: MLType>(_token: GCtoken, len: usize) -> GCResult1<T> {
+// trying to enforce invariant that these allocation functions must be called on newtypes of `String`
+pub trait StringNewtype {
+    fn as_string(a: Self) -> String;
+    fn to_string(a: String) -> Self;
+}
+fn alloc_blank_string_newtype<T: MLType + StringNewtype>(_token: GCtoken, len: usize) -> GCResult1<T> {
     GCResult1::of(unsafe { caml_alloc_string(len) })
 }
-pub fn alloc_string_newtype<T: MLType>(token: GCtoken, s: String) -> GCResult1<T> {
+pub fn alloc_string_newtype<T: MLType + StringNewtype>(token: GCtoken, s: String) -> GCResult1<T> {
     let r = alloc_blank_string_newtype(token, s.len());
     unsafe {
         ptr::copy_nonoverlapping(s.as_ptr(), r.raw as *mut u8, s.len());
     }
     r
 }
-pub fn as_string_newtype<'a, T: MLType>(s: Val<'a, T>) -> String {
+pub fn as_string_newtype<'a, T: MLType + StringNewtype>(s: Val<'a, T>) -> String {
     fn as_bytes<'a, T: MLType>(s: Val<'a, T>) -> &'a [u8] {
         let s = s.eval();
         assert!(Tag_val(s) == String_tag);
@@ -598,7 +607,6 @@ pub fn as_string_newtype<'a, T: MLType>(s: Val<'a, T>) -> String {
     }
     str::from_utf8(as_bytes(s)).unwrap().to_string()
 }
-
 
 fn alloc_blank_bytes(_token: GCtoken, len: usize) -> GCResult1<String> {
     GCResult1::of(unsafe { caml_alloc_string(len) })
@@ -612,7 +620,7 @@ pub fn alloc_bytes(token: GCtoken, s: String) -> GCResult1<String> {
 }
 
 pub fn alloc_bigstring(_token: GCtoken, v: &[u8]) -> GCResult1<&'static [u8]> {
-    GCResult1::of(unsafe { caml_ba_alloc_dims(3, 1 , v.as_ptr() , v.len() as i64) })
+    GCResult1::of(unsafe {caml_ba_alloc_dims(3, 1, v.as_ptr())})
 }
 
 
